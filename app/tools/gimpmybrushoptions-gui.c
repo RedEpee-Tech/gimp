@@ -103,55 +103,27 @@ gimp_mybrush_options_gui (GimpToolOptions *tool_options)
   scale = gimp_prop_check_button_new (config, "no-erasing", NULL);
   gtk_box_pack_start (GTK_BOX (vbox), scale, FALSE, FALSE, 0);
 
-  /* Spectral blending */
 
-/* Spectral blending */
+   /* Spectral blending  */
+  {
+    GtkWidget *frame;
+    GtkWidget *scale;
 
-  /* Create an expander for spectral blending options */
-  spectral_expander = gtk_expander_new ("Spectral Blending");
-  gtk_expander_set_expanded (GTK_EXPANDER (spectral_expander), FALSE);
+    /* pigment slider: 0.0–1.0, 2 decimal digits */
+    scale = gimp_prop_spin_scale_new (config, "pigment", /* double property */
+                                      0.0, 1.0, 2);
 
-  /* Create a vertical box to be the single child of the expander */
-  GtkWidget *spectral_expander_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
-  gtk_container_add (GTK_CONTAINER (spectral_expander), spectral_expander_box);
+    /* boolean property "spectral-blending" controls checkbox + expansion */
+    frame = gimp_prop_expanding_frame_new (config, "spectral-blending", NULL, /* use property label, e.g. “Spectral Blending” */
+                                           scale, NULL);
 
-  /* Pack the expander into the main vbox */
-  gtk_box_pack_start (GTK_BOX (vbox), spectral_expander, FALSE, FALSE, 0);
-
-  /* Create a prop check box to enable/disable spectral blending */
-  spectral_check_box = gimp_prop_check_button_new (config, "spectral-blending",
-                                                   "Enable Spectral Blending");
-  /* Pack into the expander content box (not directly into the expander) */
-  gtk_box_pack_start (GTK_BOX (spectral_expander_box), spectral_check_box, FALSE, FALSE, 0);
-
-  /* Create pigment slider (prop spin scale) and disable initially */
-  spectral_slider = gimp_prop_spin_scale_new (config, "pigment", 0.0, 1.0, 2);
-  gtk_widget_set_sensitive (spectral_slider, FALSE);
-  gtk_box_pack_start (GTK_BOX (spectral_expander_box), spectral_slider, FALSE, FALSE, 0);
-
-  GtkWidget *toggle_child = NULL;
-  if (GTK_IS_BIN (spectral_check_box))
-    toggle_child = gtk_bin_get_child (GTK_BIN (spectral_check_box));
-
-  if (toggle_child && GTK_IS_TOGGLE_BUTTON (toggle_child))
-    g_signal_connect (toggle_child, "toggled",
-                      G_CALLBACK (on_spectral_checkbox_toggled), spectral_slider);
-  else
-
-    /* Connect directly to the prop widget; many prop wrappers proxy signals 
-    g_signal_connect (spectral_check_box, "toggled",
-                      G_CALLBACK (on_spectral_checkbox_toggled), spectral_slider);
-                      */
-
-  /* Ensure the new widgets are visible */
-  gtk_widget_show_all (spectral_expander_box);
-
+    gtk_box_pack_start (GTK_BOX (vbox), frame, FALSE, FALSE, 0);
+  }
 
   /* Expand layer options */
   vbox2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
 
-  scale = gimp_prop_spin_scale_new (config, "expand-amount",
-                                    1, 10, 2);
+  scale = gimp_prop_spin_scale_new (config, "expand-amount", 1, 10, 2);
   gimp_spin_scale_set_constrain_drag (GIMP_SPIN_SCALE (scale), TRUE);
   gimp_spin_scale_set_scale_limits (GIMP_SPIN_SCALE (scale), 1.0, 1000.0);
   gimp_spin_scale_set_gamma (GIMP_SPIN_SCALE (scale), 1.0);
@@ -161,11 +133,10 @@ gimp_mybrush_options_gui (GimpToolOptions *tool_options)
   gtk_box_pack_start (GTK_BOX (vbox2), combo_box, FALSE, FALSE, 0);
 
   frame = gimp_prop_enum_radio_frame_new (config, "expand-mask-fill-type",
-                                          _("Fill Layer Mask With"), 0, 1);
+                                          _ ("Fill Layer Mask With"), 0, 1);
   gtk_box_pack_start (GTK_BOX (vbox2), frame, FALSE, FALSE, 0);
 
-  frame = gimp_prop_expanding_frame_new (config, "expand-use", NULL,
-                                         vbox2, NULL);
+  frame = gimp_prop_expanding_frame_new (config, "expand-use", NULL, vbox2, NULL);
 
   gtk_box_pack_start (GTK_BOX (vbox), frame, FALSE, FALSE, 0);
   gtk_widget_show (frame);

@@ -276,7 +276,7 @@ gimp_mypaint_surface_get_color_2 (MyPaintSurface2 *base_surface,
   *color_b = 0.0f;
   *color_a = 0.0f;
 
-  if (dabRect.width > 0 || dabRect.height > 0)
+  if (dabRect.width > 0 && dabRect.height > 0)
   {
     const float one_over_radius2 = 1.0f / (radius * radius);
     float sum_weight = 0.0f;
@@ -387,9 +387,9 @@ gimp_mypaint_surface_get_color_2 (MyPaintSurface2 *base_surface,
             gimp_spectral_to_rgb (spec_avg, &pigment_rgb[0], &pigment_rgb[1],
                                   &pigment_rgb[2]);
 
-            out_r = (1.0f - paint) * out_r + paint * pigment_rgb[0];
-            out_g = (1.0f - paint) * out_g + paint * pigment_rgb[1];
-            out_b = (1.0f - paint) * out_b + paint * pigment_rgb[2];
+            sum_r = (1.0f - paint) * sum_r + paint * pigment_rgb[0];
+            sum_g = (1.0f - paint) * sum_g + paint * pigment_rgb[1];
+            sum_b = (1.0f - paint) * sum_b + paint * pigment_rgb[2];
           }
 
         /* FIXME: Clamping is wrong because GEGL allows alpha > 1, this should probably re-multipy things */

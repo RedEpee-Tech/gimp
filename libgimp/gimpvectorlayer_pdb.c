@@ -123,42 +123,6 @@ gimp_vector_layer_refresh (GimpVectorLayer *layer)
 }
 
 /**
- * gimp_vector_layer_discard:
- * @layer: The vector layer.
- *
- * Discard the vector layer information.
- *
- * Discards the vector information. This makes the layer behave like a
- * normal layer.
- *
- * Returns: TRUE on success.
- *
- * Since: 3.2
- **/
-gboolean
-gimp_vector_layer_discard (GimpVectorLayer *layer)
-{
-  GimpValueArray *args;
-  GimpValueArray *return_vals;
-  gboolean success = TRUE;
-
-  args = gimp_value_array_new_from_types (NULL,
-                                          GIMP_TYPE_VECTOR_LAYER, layer,
-                                          G_TYPE_NONE);
-
-  return_vals = _gimp_pdb_run_procedure_array (gimp_get_pdb (),
-                                               "gimp-vector-layer-discard",
-                                               args);
-  gimp_value_array_unref (args);
-
-  success = GIMP_VALUES_GET_ENUM (return_vals, 0) == GIMP_PDB_SUCCESS;
-
-  gimp_value_array_unref (return_vals);
-
-  return success;
-}
-
-/**
  * gimp_vector_layer_get_enable_fill:
  * @layer: The vector layer.
  *
@@ -240,9 +204,13 @@ gimp_vector_layer_get_enable_stroke (GimpVectorLayer *layer)
  *
  * This procedure returns the color of the fill in a vector layer.
  *
+ * Note that there won't be both a fill color and pattern, so either
+ * this procedure or [method@Gimp.VectorLayer.get_fill_pattern] will
+ * return %NULL at any given time.
+ *
  * Returns: (transfer full): The color of the fill.
  *
- * Since: 2.6
+ * Since: 3.2
  **/
 GeglColor *
 gimp_vector_layer_get_fill_color (GimpVectorLayer *layer)
@@ -266,6 +234,46 @@ gimp_vector_layer_get_fill_color (GimpVectorLayer *layer)
   gimp_value_array_unref (return_vals);
 
   return color;
+}
+
+/**
+ * gimp_vector_layer_get_fill_pattern:
+ * @layer: The vector layer.
+ *
+ * Get the pattern of the fill in a vector layer.
+ *
+ * This procedure returns the pattern of the fill in a vector layer.
+ *
+ * Note that there won't be both a fill color and pattern, so either
+ * this procedure or [method@Gimp.VectorLayer.get_fill_color] will
+ * return %NULL at any given time.
+ *
+ * Returns: (transfer none): The pattern of the fill.
+ *
+ * Since: 3.2
+ **/
+GimpPattern *
+gimp_vector_layer_get_fill_pattern (GimpVectorLayer *layer)
+{
+  GimpValueArray *args;
+  GimpValueArray *return_vals;
+  GimpPattern *pattern = NULL;
+
+  args = gimp_value_array_new_from_types (NULL,
+                                          GIMP_TYPE_VECTOR_LAYER, layer,
+                                          G_TYPE_NONE);
+
+  return_vals = _gimp_pdb_run_procedure_array (gimp_get_pdb (),
+                                               "gimp-vector-layer-get-fill-pattern",
+                                               args);
+  gimp_value_array_unref (args);
+
+  if (GIMP_VALUES_GET_ENUM (return_vals, 0) == GIMP_PDB_SUCCESS)
+    pattern = GIMP_VALUES_GET_PATTERN (return_vals, 1);
+
+  gimp_value_array_unref (return_vals);
+
+  return pattern;
 }
 
 /**
@@ -349,9 +357,13 @@ gimp_vector_layer_get_stroke_cap_style (GimpVectorLayer *layer)
  *
  * This procedure returns the color of the stroke in a vector layer.
  *
+ * Note that there won't be both a stroke color and pattern, so either
+ * this procedure or [method@Gimp.VectorLayer.get_stroke_pattern] will
+ * return %NULL at any given time.
+ *
  * Returns: (transfer full): The color of the stroke.
  *
- * Since: 2.6
+ * Since: 3.2
  **/
 GeglColor *
 gimp_vector_layer_get_stroke_color (GimpVectorLayer *layer)
@@ -375,6 +387,46 @@ gimp_vector_layer_get_stroke_color (GimpVectorLayer *layer)
   gimp_value_array_unref (return_vals);
 
   return color;
+}
+
+/**
+ * gimp_vector_layer_get_stroke_pattern:
+ * @layer: The vector layer.
+ *
+ * Get the pattern of the stroke in a vector layer.
+ *
+ * This procedure returns the pattern of the fill in a vector layer.
+ *
+ * Note that there won't be both a stroke color and pattern, so either
+ * this procedure or [method@Gimp.VectorLayer.get_stroke_color] will
+ * return %NULL at any given time.
+ *
+ * Returns: (transfer none): The pattern of the fill.
+ *
+ * Since: 3.2
+ **/
+GimpPattern *
+gimp_vector_layer_get_stroke_pattern (GimpVectorLayer *layer)
+{
+  GimpValueArray *args;
+  GimpValueArray *return_vals;
+  GimpPattern *pattern = NULL;
+
+  args = gimp_value_array_new_from_types (NULL,
+                                          GIMP_TYPE_VECTOR_LAYER, layer,
+                                          G_TYPE_NONE);
+
+  return_vals = _gimp_pdb_run_procedure_array (gimp_get_pdb (),
+                                               "gimp-vector-layer-get-stroke-pattern",
+                                               args);
+  gimp_value_array_unref (args);
+
+  if (GIMP_VALUES_GET_ENUM (return_vals, 0) == GIMP_PDB_SUCCESS)
+    pattern = GIMP_VALUES_GET_PATTERN (return_vals, 1);
+
+  gimp_value_array_unref (return_vals);
+
+  return pattern;
 }
 
 /**

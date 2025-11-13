@@ -58,14 +58,14 @@ static const GimpActionEntry layers_actions[] =
     GIMP_HELP_LAYER_EDIT },
 
   { "layers-edit-text", GIMP_ICON_EDIT,
-    NC_("layers-action", "Edit Te_xt on canvas"), NULL, { NULL },
+    NC_("layers-action", "Edit Te_xt on Canvas"), NULL, { NULL },
     NC_("layers-action", "Edit this text layer content on canvas"),
     layers_edit_text_cmd_callback,
     GIMP_HELP_LAYER_EDIT },
 
   { "layers-edit-vector", GIMP_ICON_TOOL_PATH,
-    NC_("layers-action", "Path Tool"), NULL, { NULL },
-    NC_("layers-action", "Activate the path tool on this vector layer's path"),
+    NC_("layers-action", "Edit Vector on Canvas"), NULL, { NULL },
+    NC_("layers-action", "Activate the path tool on this vector layer"),
     layers_edit_vector_cmd_callback,
     GIMP_HELP_TOOL_PATH },
 
@@ -188,10 +188,10 @@ static const GimpActionEntry layers_actions[] =
     layers_rasterize_cmd_callback,
     GIMP_HELP_LAYER_TEXT_DISCARD },
 
-  { "layers-retrieve", GIMP_ICON_TOOL_TEXT,
+  { "layers-revert-rasterize", GIMP_ICON_TOOL_TEXT,
     NC_("layers-action", "_Revert Rasterize"), NULL, { NULL },
     NC_("layers-action", "Turn rasterized layers back into text, link or vector layers"),
-    layers_retrieve_cmd_callback,
+    layers_revert_rasterize_cmd_callback,
     GIMP_HELP_LAYER_TEXT_DISCARD },
 
   { "layers-text-to-path", GIMP_ICON_TOOL_TEXT,
@@ -205,12 +205,6 @@ static const GimpActionEntry layers_actions[] =
     NC_("layers-action", "Warp this layer's text along the current path"),
     layers_text_along_path_cmd_callback,
     GIMP_HELP_LAYER_TEXT_ALONG_PATH },
-
-  { "layers-vector-fill-stroke", NULL,
-    NC_("layers-action", "Fill / Stroke..."), NULL, { NULL },
-    NC_("layers-action", "Edit the fill and stroke of this vector layer"),
-    layers_vector_fill_stroke_cmd_callback,
-    GIMP_HELP_LAYER_VECTOR_FILL_STROKE },
 
   { "layers-resize", GIMP_ICON_OBJECT_RESIZE,
     NC_("layers-action", "Layer B_oundary Size..."), NULL, { NULL },
@@ -1068,12 +1062,10 @@ layers_actions_update (GimpActionGroup *group,
   SET_SENSITIVE ("layers-flatten-image",     !fs && !ac);
 
   SET_VISIBLE   ("layers-rasterize",         has_rasterizable);
-  SET_VISIBLE   ("layers-retrieve",          has_rasterized);
+  SET_VISIBLE   ("layers-revert-rasterize",  has_rasterized);
 
   SET_VISIBLE   ("layers-text-to-path",      n_text_layers > 0 && !ac);
   SET_VISIBLE   ("layers-text-along-path",   text_layer && !ac);
-
-  SET_VISIBLE   ("layers-vector-fill-stroke", vector_layer && !ac);
 
   SET_SENSITIVE ("layers-resize",          n_selected_layers == 1 && all_writable && all_movable && !ac);
   SET_SENSITIVE ("layers-resize-to-image", all_writable && all_movable && !ac);

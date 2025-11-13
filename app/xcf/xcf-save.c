@@ -62,6 +62,7 @@
 #include "core/gimplist.h"
 #include "core/gimpparasitelist.h"
 #include "core/gimpprogress.h"
+#include "core/gimprasterizable.h"
 #include "core/gimpsamplepoint.h"
 #include "core/gimpstrokeoptions.h"
 #include "core/gimpsymmetry.h"
@@ -744,7 +745,8 @@ xcf_save_layer_props (XcfInfo    *info,
   else if (GIMP_IS_LINK_LAYER (layer))
     {
       xcf_check_error (xcf_save_prop (info, image, PROP_LINK_LAYER, error, layer), ;);
-      xcf_check_error (xcf_save_prop (info, image, PROP_TRANSFORM, error, layer), ;);
+      if (gimp_link_layer_get_transform (GIMP_LINK_LAYER (layer), NULL, NULL, NULL, NULL))
+        xcf_check_error (xcf_save_prop (info, image, PROP_TRANSFORM, error, layer), ;);
     }
 
   if (gimp_viewable_get_children (GIMP_VIEWABLE (layer)))
@@ -1708,7 +1710,7 @@ xcf_save_prop (XcfInfo    *info,
         xcf_write_int32_check_error (info, &size, 1, va_end (args));
         base = info->cp;
 
-        uint_val = (guint32) vector_layer->modified;
+        uint_val = (guint32) gimp_rasterizable_is_rasterized (GIMP_RASTERIZABLE (vector_layer));
         xcf_write_int32_check_error (info, (guint32 *) &uint_val, 1, va_end (args));
 
         uint_val = gimp_item_get_tattoo (GIMP_ITEM (options->path));

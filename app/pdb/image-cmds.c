@@ -1608,7 +1608,7 @@ image_merge_down_invoker (GimpProcedure         *procedure,
           GList *layers;
 
           layers = gimp_image_merge_down (image, merge_layers, context,
-                                          merge_type, progress, error);
+                                          merge_type, progress, NULL, error);
           g_list_free (merge_layers);
 
           if (! layers)
@@ -2911,7 +2911,10 @@ image_detach_parasite_invoker (GimpProcedure         *procedure,
 
   if (success)
     {
-      gimp_image_parasite_detach (image, name, TRUE);
+      if (name && strlen (name) > 0)
+        gimp_image_parasite_detach (image, name, TRUE);
+      else
+        success = FALSE;
     }
 
   return gimp_procedure_get_return_values (procedure, success,
@@ -3094,9 +3097,9 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-new");
   gimp_procedure_set_static_help (procedure,
                                   "Creates a new image with the specified width, height, and type.",
-                                  "Creates a new image, undisplayed, with the specified extents and type. A layer should be created and added before this image is displayed, or subsequent calls to 'gimp-display-new' with this image as an argument will fail. Layers can be created using the 'gimp-layer-new' commands. They can be added to an image using the 'gimp-image-insert-layer' command.\n"
+                                  "Creates a new image, undisplayed, with the specified extents and type. A layer should be created and added before this image is displayed, or subsequent calls to [ctor@Gimp.Display.new] with this image as an argument will fail. Layers can be created using the [ctor@Gimp.Layer.new] command. They can be added to an image using the [method@Gimp.Image.insert_layer] command.\n"
                                   "\n"
-                                  "If your image's type if INDEXED, a palette must also be set with [method@Gimp.Image.set_palette]. An indexed image without a palette will output unexpected colors.",
+                                  "If your image's type is INDEXED, a palette must also be set with [method@Gimp.Image.set_palette]. An indexed image without a palette will output unexpected colors.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Spencer Kimball & Peter Mattis",
@@ -3138,7 +3141,7 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-new-with-precision");
   gimp_procedure_set_static_help (procedure,
                                   "Creates a new image with the specified width, height, type and precision.",
-                                  "Creates a new image, undisplayed with the specified extents, type and precision. Indexed images can only be created at GIMP_PRECISION_U8_NON_LINEAR precision. See 'gimp-image-new' for further details.",
+                                  "Creates a new image, undisplayed with the specified extents, type and precision. Indexed images can only be created at [enum@Gimp.Precision.U8_NON_LINEAR] precision. See [ctor@Gimp.Image.new] for further details.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Michael Natterer <mitch@gimp.org>",
@@ -3665,7 +3668,7 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-insert-layer");
   gimp_procedure_set_static_help (procedure,
                                   "Add the specified layer to the image.",
-                                  "This procedure adds the specified layer to the image at the given position. If the specified parent is a valid layer group (See 'gimp-item-is-group' and 'gimp-layer-group-new') then the layer is added inside the group. If the parent is 0, the layer is added inside the main stack, outside of any group. The position argument specifies the location of the layer inside the stack (or the group, if a valid parent was supplied), starting from the top (0) and increasing. If the position is specified as -1 and the parent is specified as 0, then the layer is inserted above the active layer, or inside the group if the active layer is a layer group. The layer type must be compatible with the image base type.",
+                                  "This procedure adds the specified layer to the image at the given position. If the specified parent is a valid layer group (See [method@Gimp.Item.is_group] and [ctor@Gimp.GroupLayer.new]) then the layer is added inside the group. If the parent is 0, the layer is added inside the main stack, outside of any group. The position argument specifies the location of the layer inside the stack (or the group, if a valid parent was supplied), starting from the top (0) and increasing. If the position is specified as -1 and the parent is specified as 0, then the layer is inserted above the active layer, or inside the group if the active layer is a layer group. The layer type must be compatible with the image base type.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Spencer Kimball & Peter Mattis",
@@ -3737,7 +3740,7 @@ register_image_procs (GimpPDB *pdb)
                                   "Freeze the image's layer list.",
                                   "This procedure freezes the layer list of the image, suppressing any updates to the Layers dialog in response to changes to the image's layers. This can significantly improve performance while applying changes affecting the layer list.\n"
                                   "\n"
-                                  "Each call to 'gimp-image-freeze-layers' should be matched by a corresponding call to 'gimp-image-thaw-layers', undoing its effects.",
+                                  "Each call to 'gimp-image-freeze-layers' should be matched by a corresponding call to [method@Gimp.Image.thaw_layers], undoing its effects.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Ell",
@@ -3762,7 +3765,7 @@ register_image_procs (GimpPDB *pdb)
                                   "Thaw the image's layer list.",
                                   "This procedure thaws the layer list of the image, re-enabling updates to the Layers dialog.\n"
                                   "\n"
-                                  "This procedure should match a corresponding call to 'gimp-image-freeze-layers'.",
+                                  "This procedure should match a corresponding call to [method@Gimp.Image.freeze_layers].",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Ell",
@@ -3857,7 +3860,7 @@ register_image_procs (GimpPDB *pdb)
                                   "Freeze the image's channel list.",
                                   "This procedure freezes the channel list of the image, suppressing any updates to the Channels dialog in response to changes to the image's channels. This can significantly improve performance while applying changes affecting the channel list.\n"
                                   "\n"
-                                  "Each call to 'gimp-image-freeze-channels' should be matched by a corresponding call to 'gimp-image-thaw-channels', undoing its effects.",
+                                  "Each call to 'gimp-image-freeze-channels' should be matched by a corresponding call to [method@Gimp.Image.thaw_channels], undoing its effects.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Ell",
@@ -3882,7 +3885,7 @@ register_image_procs (GimpPDB *pdb)
                                   "Thaw the image's channel list.",
                                   "This procedure thaws the channel list of the image, re-enabling updates to the Channels dialog.\n"
                                   "\n"
-                                  "This procedure should match a corresponding call to 'gimp-image-freeze-channels'.",
+                                  "This procedure should match a corresponding call to [method@Gimp.Image.freeze_channels].",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Ell",
@@ -4149,7 +4152,7 @@ register_image_procs (GimpPDB *pdb)
                                   "Freeze the image's path list.",
                                   "This procedure freezes the path list of the image, suppressing any updates to the Paths dialog in response to changes to the image's path. This can significantly improve performance while applying changes affecting the path list.\n"
                                   "\n"
-                                  "Each call to 'gimp-image-freeze-paths' should be matched by a corresponding call to gimp_image_thaw_paths (), undoing its effects.",
+                                  "Each call to 'gimp-image-freeze-paths' should be matched by a corresponding call to [method@Gimp.Image.thaw_paths], undoing its effects.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Ell",
@@ -4174,7 +4177,7 @@ register_image_procs (GimpPDB *pdb)
                                   "Thaw the image's path list.",
                                   "This procedure thaws the path list of the image, re-enabling updates to the Paths dialog.\n"
                                   "\n"
-                                  "This procedure should match a corresponding call to 'gimp-image-freeze-paths'.",
+                                  "This procedure should match a corresponding call to [method@Gimp.Image.freeze_paths].",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Ell",
@@ -4393,7 +4396,7 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-flatten");
   gimp_procedure_set_static_help (procedure,
                                   "Flatten all visible layers into a single layer. Discard all invisible layers.",
-                                  "This procedure combines the visible layers in a manner analogous to merging with the CLIP_TO_IMAGE merge type. Non-visible layers are discarded, and the resulting image is stripped of its alpha channel.",
+                                  "This procedure combines the visible layers in a manner analogous to merging with the [enum@Gimp.MergeType.CLIP_TO_IMAGE] merge type. Non-visible layers are discarded, and the resulting image is stripped of its alpha channel.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Spencer Kimball & Peter Mattis",
@@ -4422,7 +4425,7 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-merge-visible-layers");
   gimp_procedure_set_static_help (procedure,
                                   "Merge the visible image layers into one.",
-                                  "This procedure combines the visible layers into a single layer using the specified merge type. A merge type of EXPAND_AS_NECESSARY expands the final layer to encompass the areas of the visible layers. A merge type of CLIP_TO_IMAGE clips the final layer to the extents of the image. A merge type of CLIP_TO_BOTTOM_LAYER clips the final layer to the size of the bottommost layer.",
+                                  "This procedure combines the visible layers into a single layer using the specified merge type. A merge type of [enum@Gimp.MergeType.EXPAND_AS_NECESSARY] expands the final layer to encompass the areas of the visible layers. A merge type of [enum@Gimp.MergeType.CLIP_TO_IMAGE] clips the final layer to the extents of the image. A merge type of [enum@Gimp.MergeType.CLIP_TO_BOTTOM_LAYER] clips the final layer to the size of the bottommost layer.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Spencer Kimball & Peter Mattis",
@@ -4460,7 +4463,7 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-merge-down");
   gimp_procedure_set_static_help (procedure,
                                   "Merge the layer passed and the first visible layer below.",
-                                  "This procedure combines the passed layer and the first visible layer below it using the specified merge type. A merge type of EXPAND_AS_NECESSARY expands the final layer to encompass the areas of the visible layers. A merge type of CLIP_TO_IMAGE clips the final layer to the extents of the image. A merge type of CLIP_TO_BOTTOM_LAYER clips the final layer to the size of the bottommost layer.",
+                                  "This procedure combines the passed layer and the first visible layer below it using the specified merge type. A merge type of [enum@Gimp.MergeType.EXPAND_AS_NECESSARY] expands the final layer to encompass the areas of the visible layers. A merge type of [enum@Gimp.MergeType.CLIP_TO_IMAGE] clips the final layer to the extents of the image. A merge type of [enum@Gimp.MergeType.CLIP_TO_BOTTOM_LAYER] clips the final layer to the size of the bottommost layer.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Larry Ewing",
@@ -4504,7 +4507,7 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-get-palette");
   gimp_procedure_set_static_help (procedure,
                                   "Returns the image's colormap",
-                                  "This procedure returns the image's colormap as a %GimpPalette. If the image is not in Indexed color mode, %NULL is returned.",
+                                  "This procedure returns the image's colormap as a [class@Gimp.Palette]. If the image is not in Indexed color mode, %NULL is returned.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Jehan",
@@ -4658,7 +4661,9 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-is-dirty");
   gimp_procedure_set_static_help (procedure,
                                   "Checks if the image has unsaved changes.",
-                                  "This procedure checks the specified image's dirty count to see if it needs to be saved. Note that saving the image does not automatically set the dirty count to 0, you need to call 'gimp-image-clean-all' after calling a save procedure to make the image clean.",
+                                  "This procedure checks the specified image's dirty count to see if it needs to be saved. Note that saving the image does not automatically set the dirty count to 0, you need to call [method@Gimp.Image.clean_all] after calling a save procedure to make the image clean.\n"
+                                  "\n"
+                                  "When loading an image using e.g. [func@Gimp.file_load], or when created by a [class@Gimp.LoadProcedure], the image will be marked as clean. In other cases, it may sometimes be useful to clean programmatically created image yourself.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Spencer Kimball & Peter Mattis",
@@ -5730,7 +5735,9 @@ register_image_procs (GimpPDB *pdb)
                                "gimp-image-detach-parasite");
   gimp_procedure_set_static_help (procedure,
                                   "Removes a parasite from an image.",
-                                  "This procedure detaches a parasite from an image. It has no return values.",
+                                  "This procedure detaches a parasite from an image.\n"
+                                  "\n"
+                                  "It will return %FALSE if @name is invalid (%NULL or empty string) and %TRUE otherwise (even if there was no parasite removed, because no parasite was named like this).",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Jay Cox",

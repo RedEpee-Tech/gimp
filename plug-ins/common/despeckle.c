@@ -190,7 +190,7 @@ despeckle_create_procedure (GimpPlugIn  *plug_in,
                                        G_PARAM_READWRITE);
 
       gimp_procedure_add_choice_argument (procedure, "type",
-                                          _("_Filter Type"),
+                                          _("_Filter type"),
                                           _("Filter type"),
                                           gimp_choice_new_with_values ("median",             0,                 _("Median"),             NULL,
                                                                        "adaptive",           FILTER_ADAPTIVE,   _("Adaptive"),           NULL,
@@ -420,20 +420,20 @@ despeckle_dialog (GimpProcedure *procedure,
   /*
    * Box size (diameter) control...
    */
-  scale = gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
+  scale = gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
                                                 "radius", 1.0);
   gtk_widget_set_margin_bottom (scale, 12);
   /*
    * Black level control...
    */
-  scale = gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                                 "black", 1.0);
+  scale = gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                                "black", 1.0);
   gtk_widget_set_margin_bottom (scale, 12);
   /*
    * White level control...
    */
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "white", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "white", 1.0);
 
   vbox = gimp_procedure_dialog_fill_box (GIMP_PROCEDURE_DIALOG (dialog),
                                          "despeckle-vbox",

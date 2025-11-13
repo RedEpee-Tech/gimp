@@ -116,9 +116,9 @@ static void      gimp_init_i18n               (void);
 static void      gimp_init_malloc             (void);
 
 #if defined (G_OS_WIN32) && !defined (GIMP_CONSOLE_COMPILATION)
-static void      gimp_open_console_window     (void);
+static void      gimp_attach_console_window     (void);
 #else
-#define gimp_open_console_window() /* as nothing */
+#define gimp_attach_console_window() /* as nothing */
 #endif
 
 static const gchar        *system_gimprc     = NULL;
@@ -559,15 +559,10 @@ main (int    argc,
   gchar          *utf8_name;
   wchar_t        *name;
 #endif
-#ifndef GIMP_CONSOLE_COMPILATION
-  GKeyFile       *flatpak_keyfile;
-#endif
   gint            retval;
   gint            i;
 
-#ifdef ENABLE_WIN32_DEBUG_CONSOLE
-  gimp_open_console_window ();
-#endif
+  gimp_attach_console_window ();
 
 #if defined(ENABLE_RELOCATABLE_RESOURCES) && defined(__APPLE__)
   /* remove MacOS session identifier from the command line args */
@@ -751,7 +746,7 @@ main (int    argc,
                (strcmp (arg, "-?") == 0) ||
                (strncmp (arg, "--help-", 7) == 0))
         {
-          gimp_open_console_window ();
+          gimp_attach_console_window ();
         }
 #endif
     }
@@ -783,7 +778,7 @@ main (int    argc,
     {
       if (error)
         {
-          gimp_open_console_window ();
+          gimp_attach_console_window ();
           g_print ("%s\n", error->message);
           g_error_free (error);
         }
@@ -801,48 +796,50 @@ main (int    argc,
 #if GLIB_CHECK_VERSION(2,72,0)
   /* g_set_prgname() can only be called several times since 2.72.0. */
 #ifndef GIMP_CONSOLE_COMPILATION
-  g_return_val_if_fail (gdk_display_get_default () != NULL, EXIT_FAILURE);
-
-  flatpak_keyfile = g_key_file_new ();
-
-  if (
-#ifdef GDK_WINDOWING_X11
-      ! GDK_IS_X11_DISPLAY (gdk_display_get_default ()) &&
-#endif
-      g_key_file_load_from_file (flatpak_keyfile, "/.flatpak-info",
-                                 G_KEY_FILE_NONE, NULL))
+  if (! no_interface)
     {
-      /* Flatpak renames the desktop file. The .flatpak-info file
-       * tells us the right desktop name we must associate our process
-       * to, especially as we have flatpaks with different IDs.
-       *
-       * This logic should not apply on X11 which will instead
-       * apparently use the StartupWMClass set in the desktop file and
-       * expect it to be the same as the name set by g_set_prgname().
-       *
-       * Cf. #13183 and #14233.
-       */
-      gchar *flatpak_name = g_key_file_get_string (flatpak_keyfile,
-                                                   "Application", "name", NULL);
+      GKeyFile *flatpak_keyfile;
 
-      if (flatpak_name != NULL)
+      g_return_val_if_fail (gdk_display_get_default () != NULL, EXIT_FAILURE);
+
+      flatpak_keyfile = g_key_file_new ();
+
+      if (
+#ifdef GDK_WINDOWING_X11
+          ! GDK_IS_X11_DISPLAY (gdk_display_get_default ()) &&
+#endif
+          g_key_file_load_from_file (flatpak_keyfile, "/.flatpak-info",
+                                     G_KEY_FILE_NONE, NULL))
         {
-          g_set_prgname (flatpak_name);
-          g_free (flatpak_name);
+          /* Flatpak renames the desktop file. The .flatpak-info file
+           * tells us the right desktop name we must associate our process
+           * to, especially as we have flatpaks with different IDs.
+           *
+           * This logic should not apply on X11 which will instead
+           * apparently use the StartupWMClass set in the desktop file and
+           * expect it to be the same as the name set by g_set_prgname().
+           *
+           * Cf. #13183 and #14233.
+           */
+          gchar *flatpak_name = g_key_file_get_string (flatpak_keyfile,
+                                                       "Application", "name", NULL);
+
+          if (flatpak_name != NULL)
+            {
+              g_set_prgname (flatpak_name);
+              g_free (flatpak_name);
+            }
+          /* The else case should never happen unless we are in some kind
+           * of broken flatpak environment or somehow in a non-flatpak
+           * environment with a .flatpak-info file at the root, which
+           * seems improbable. Fail silently.
+           */
         }
-      /* The else case should never happen unless we are in some kind
-       * of broken flatpak environment or somehow in a non-flatpak
-       * environment with a .flatpak-info file at the root, which
-       * seems improbable. Fail silently.
-       */
+
+      g_key_file_free (flatpak_keyfile);
     }
-
-  g_key_file_free (flatpak_keyfile);
 #endif
 #endif
-
-  if (no_interface || be_verbose || console_messages || batch_commands != NULL)
-    gimp_open_console_window ();
 
   if (no_interface)
     new_instance = TRUE;
@@ -941,29 +938,37 @@ WinMain (struct HINSTANCE__ *hInstance,
 static void
 wait_console_window (void)
 {
-  FILE *console = g_fopen ("CONOUT$", "w");
-
-  SetConsoleTitleW (g_utf8_to_utf16 (_("GIMP output. Type any character to close this window."), -1, NULL, NULL, NULL));
-  fprintf (console, _("(Type any character to close this window)\n"));
-  fflush (console);
-  _getch ();
+  g_print (_ ("(Type any character to close this window)\n"));
 }
 
 static void
-gimp_open_console_window (void)
+gimp_attach_console_window (void)
 {
-  if (((HANDLE) _get_osfhandle (fileno (stdout)) == INVALID_HANDLE_VALUE ||
-       (HANDLE) _get_osfhandle (fileno (stderr)) == INVALID_HANDLE_VALUE) && AllocConsole ())
+  /* If run on non-native shell, do nothing */ 
+  if (g_getenv ("TERM") || g_getenv ("SHELL"))
     {
-      if ((HANDLE) _get_osfhandle (fileno (stdout)) == INVALID_HANDLE_VALUE)
-        freopen ("CONOUT$", "w", stdout);
+      g_printerr ("Non-native shell detected, GIMP may "
+                  "behave unexpectedly on Unix shells in Windows.\n");
+      return;
+    }
 
-      if ((HANDLE) _get_osfhandle (fileno (stderr)) == INVALID_HANDLE_VALUE)
-        freopen ("CONOUT$", "w", stderr);
+  /* If run on native shell, attach to it */
+  if (AttachConsole (ATTACH_PARENT_PROCESS) != 0)
+    {
+      /* 'r' is needed to prevent interleaving and '+' to support colors */
+      freopen ("CONOUT$", "r+", stdout);
+      freopen ("CONOUT$", "r+", stderr);
+      _flushall ();
 
-      SetConsoleTitleW (g_utf8_to_utf16 (_("GIMP output. You can minimize "
-                                           "this window, but don't close "
-                                           "it."), -1, NULL, NULL, NULL));
+      {
+        /* CTRL+C handling */
+        HANDLE hIn = GetStdHandle (STD_INPUT_HANDLE);
+        DWORD  mode;
+
+        GetConsoleMode (hIn, &mode);
+        mode |= ENABLE_PROCESSED_INPUT;
+        SetConsoleMode (hIn, mode);
+      }
 
       atexit (wait_console_window);
     }
@@ -1033,7 +1038,7 @@ gimp_option_dump_gimprc (const gchar  *option_name,
 {
   GimpConfigDumpFormat format = GIMP_CONFIG_DUMP_NONE;
 
-  gimp_open_console_window ();
+  gimp_attach_console_window ();
 
   if (strcmp (option_name, "--dump-gimprc") == 0)
     format = GIMP_CONFIG_DUMP_GIMPRC;
@@ -1105,7 +1110,7 @@ gimp_option_dump_pdb_procedures_deprecated (const gchar  *option_name,
 static void
 gimp_show_version_and_exit (void)
 {
-  gimp_open_console_window ();
+  gimp_attach_console_window ();
   gimp_version_show (be_verbose);
 
   app_exit (EXIT_SUCCESS);
@@ -1114,7 +1119,7 @@ gimp_show_version_and_exit (void)
 static void
 gimp_show_license_and_exit (void)
 {
-  gimp_open_console_window ();
+  gimp_attach_console_window ();
   gimp_version_show (be_verbose);
 
   g_print ("\n%s\n\n", GIMP_LICENSE);

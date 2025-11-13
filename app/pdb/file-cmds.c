@@ -32,6 +32,7 @@
 #include "pdb-types.h"
 
 #include "core/gimp.h"
+#include "core/gimpimage-undo.h"
 #include "core/gimpimage.h"
 #include "core/gimplayer.h"
 #include "core/gimpparamspecs.h"
@@ -122,6 +123,10 @@ file_load_invoker (GimpProcedure         *procedure,
 
           if (! gimp_image_get_file (image))
             gimp_image_set_imported_file (image, file);
+
+          gimp_image_clean_all (image);
+          gimp_image_undo_disable (image);
+          gimp_image_undo_enable (image);
         }
     }
 
@@ -414,7 +419,7 @@ register_file_procs (GimpPDB *pdb)
                                "gimp-file-load");
   gimp_procedure_set_static_help (procedure,
                                   "Loads an image file by invoking the right load handler.",
-                                  "This procedure invokes the correct file load handler using magic if possible, and falling back on the file's extension and/or prefix if not.",
+                                  "This procedure invokes the correct file load handler using magic if possible, and falling back on the file's extension and/or prefix if not. Note that the loaded image will be marked as clean.",
                                   NULL);
   gimp_procedure_set_static_attribution (procedure,
                                          "Josh MacDonald",

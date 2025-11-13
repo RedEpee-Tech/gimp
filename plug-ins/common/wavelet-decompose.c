@@ -114,7 +114,7 @@ wavelet_create_procedure (GimpPlugIn  *plug_in,
       gimp_procedure_set_sensitivity_mask (procedure,
                                            GIMP_PROCEDURE_SENSITIVE_DRAWABLE);
 
-      gimp_procedure_set_menu_label (procedure, _("_Wavelet-decompose..."));
+      gimp_procedure_set_menu_label (procedure, _("_Wavelet Decompose..."));
       gimp_procedure_add_menu_path (procedure, "<Image>/Filters/Enhance");
 
       gimp_procedure_set_documentation (procedure,
@@ -199,7 +199,7 @@ wavelet_run (GimpProcedure        *procedure,
                 "create-masks", &create_masks,
                 NULL);
 
-  gimp_progress_init (_("Wavelet-Decompose"));
+  gimp_progress_init (_("Wavelet Decompose"));
 
   gimp_image_undo_group_start (image);
 
@@ -372,7 +372,7 @@ wavelet_decompose_dialog (GimpProcedure *procedure,
 
   dialog = gimp_procedure_dialog_new (procedure,
                                       GIMP_PROCEDURE_CONFIG (config),
-                                      _("Wavelet decompose"));
+                                      _("Wavelet Decompose"));
 
   gimp_dialog_set_alternative_button_order (GTK_DIALOG (dialog),
                                            GTK_RESPONSE_OK,
@@ -382,8 +382,8 @@ wavelet_decompose_dialog (GimpProcedure *procedure,
   gimp_window_set_transient (GTK_WINDOW (dialog));
 
   /* scales */
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "scales", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "scales", 1.0);
 
   gimp_procedure_dialog_fill (GIMP_PROCEDURE_DIALOG (dialog),
                               NULL);

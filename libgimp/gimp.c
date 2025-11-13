@@ -201,6 +201,15 @@ gimp_main (GType  plug_in_type,
 
   gint i, j, k;
 
+  /* Make plugins output available on console */
+  if (AttachConsole (ATTACH_PARENT_PROCESS) != 0 && ! g_getenv ("TERM") && ! g_getenv ("SHELL"))
+    {
+      /* 'r' is needed to prevent interleaving and '+' to support colors */
+      freopen ("CONOUT$", "r+", stdout);
+      freopen ("CONOUT$", "r+", stderr);
+      _flushall ();
+    }
+
   /* Reduce risks */
   SetDllDirectoryW (L"");
 

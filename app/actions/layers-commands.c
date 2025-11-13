@@ -53,6 +53,7 @@
 #include "core/gimplist.h"
 #include "core/gimppickable.h"
 #include "core/gimppickable-auto-shrink.h"
+#include "core/gimprasterizable.h"
 #include "core/gimptoolinfo.h"
 #include "core/gimpundostack.h"
 #include "core/gimpprogress.h"
@@ -79,6 +80,7 @@
 
 #include "tools/gimppathtool.h"
 #include "tools/gimptexttool.h"
+#include "tools/gimptools-utils.h"
 #include "tools/tool_manager.h"
 
 #include "dialogs/dialogs.h"
@@ -86,7 +88,6 @@
 #include "dialogs/layer-options-dialog.h"
 #include "dialogs/resize-dialog.h"
 #include "dialogs/scale-dialog.h"
-#include "dialogs/vector-layer-options-dialog.h"
 
 #include "actions.h"
 #include "items-commands.h"
@@ -109,6 +110,7 @@ static void   layers_new_callback             (GtkWidget             *dialog,
                                                gdouble                layer_opacity,
                                                GimpFillType           layer_fill_type,
                                                GimpLink              *link,
+                                               GimpPath              *path,
                                                gint                   layer_width,
                                                gint                   layer_height,
                                                gint                   layer_offset_x,
@@ -133,6 +135,7 @@ static void   layers_edit_attributes_callback (GtkWidget             *dialog,
                                                gdouble                layer_opacity,
                                                GimpFillType           layer_fill_type,
                                                GimpLink              *link,
+                                               GimpPath              *path,
                                                gint                   layer_width,
                                                gint                   layer_height,
                                                gint                   layer_offset_x,
@@ -207,17 +210,11 @@ layers_edit_cmd_callback (GimpAction *action,
     return;
 
   if (gimp_item_is_text_layer (GIMP_ITEM (layers->data)))
-    {
-      layers_edit_text_cmd_callback (action, value, data);
-    }
+    layers_edit_text_cmd_callback (action, value, data);
   else if (gimp_item_is_vector_layer (GIMP_ITEM (layers->data)))
-    {
-      layers_vector_fill_stroke_cmd_callback (action, value, data);
-    }
+    layers_edit_vector_cmd_callback (action, value, data);
   else
-    {
-      layers_edit_attributes_cmd_callback (action, value, data);
-    }
+    layers_edit_attributes_cmd_callback (action, value, data);
 }
 
 void
@@ -307,8 +304,7 @@ layers_edit_vector_cmd_callback (GimpAction *action,
     }
 
   if (GIMP_IS_PATH_TOOL (active_tool))
-    gimp_path_tool_set_path (GIMP_PATH_TOOL (active_tool),
-                             GIMP_VECTOR_LAYER (layer)->options->path);
+    gimp_path_tool_set_path (GIMP_PATH_TOOL (active_tool), GIMP_VECTOR_LAYER (layer), NULL);
 }
 
 void
@@ -932,6 +928,7 @@ layers_merge_down_cmd_callback (GimpAction *action,
   GimpImage   *image;
   GList       *layers;
   GimpDisplay *display;
+  GimpItem    *item  = NULL;
   GError      *error = NULL;
 
   return_if_no_layers (image, layers, data);
@@ -939,13 +936,16 @@ layers_merge_down_cmd_callback (GimpAction *action,
 
   layers = gimp_image_merge_down (image, layers, action_data_get_context (data),
                                   GIMP_EXPAND_AS_NECESSARY,
-                                  GIMP_PROGRESS (display), &error);
+                                  GIMP_PROGRESS (display),
+                                  &item, &error);
 
   if (error)
     {
       gimp_message_literal (image->gimp,
                             G_OBJECT (display), GIMP_MESSAGE_WARNING,
                             error->message);
+      if (item)
+        gimp_tools_blink_item (image->gimp, item);
       g_clear_error (&error);
       return;
     }
@@ -965,7 +965,10 @@ layers_merge_group_cmd_callback (GimpAction *action,
   GList     *layers;
   GList     *merge_layers = NULL;
   GList     *iter;
+  GtkWidget *widget;
+
   return_if_no_layers (image, layers, data);
+  return_if_no_widget (widget, data);
 
   for (iter = layers; iter; iter = iter->next)
     {
@@ -1020,6 +1023,18 @@ layers_merge_group_cmd_callback (GimpAction *action,
 
           if (iter2 == NULL)
             merge_layers = g_list_prepend (merge_layers, iter->data);
+        }
+    }
+
+  for (iter = merge_layers; iter; iter = iter->next)
+    {
+      if (gimp_layer_get_mode (iter->data) == GIMP_LAYER_MODE_PASS_THROUGH)
+        {
+          gimp_message_literal (image->gimp, G_OBJECT (widget), GIMP_MESSAGE_WARNING,
+                                _("Cannot merge a pass through layer group."));
+          gimp_tools_blink_item (image->gimp, GIMP_ITEM (iter->data));
+          g_list_free (merge_layers);
+          return;
         }
     }
 
@@ -1121,21 +1136,17 @@ layers_rasterize_cmd_callback (GimpAction *action,
 
   for (iter = layers; iter; iter = iter->next)
     {
-      if (gimp_item_is_link_layer (iter->data))
-        gimp_link_layer_discard (GIMP_LINK_LAYER (iter->data));
-      else if (gimp_item_is_text_layer (iter->data))
-        gimp_text_layer_discard (GIMP_TEXT_LAYER (iter->data));
-      else if (gimp_item_is_vector_layer (iter->data))
-        gimp_vector_layer_discard (GIMP_VECTOR_LAYER (iter->data));
+      if (GIMP_IS_RASTERIZABLE (iter->data) && ! gimp_rasterizable_is_rasterized (iter->data))
+        gimp_rasterizable_rasterize (GIMP_RASTERIZABLE (iter->data), TRUE);
     }
 
   gimp_image_undo_group_end (image);
 }
 
 void
-layers_retrieve_cmd_callback (GimpAction *action,
-                              GVariant   *value,
-                              gpointer    data)
+layers_revert_rasterize_cmd_callback (GimpAction *action,
+                                      GVariant   *value,
+                                      gpointer    data)
 {
   GimpImage *image;
   GList     *layers;
@@ -1148,12 +1159,8 @@ layers_retrieve_cmd_callback (GimpAction *action,
 
   for (iter = layers; iter; iter = iter->next)
     {
-      if (GIMP_IS_LINK_LAYER (iter->data) && ! gimp_item_is_link_layer (iter->data))
-        gimp_link_layer_monitor (GIMP_LINK_LAYER (iter->data));
-      else if (GIMP_IS_TEXT_LAYER (iter->data) && ! gimp_item_is_text_layer (iter->data))
-        gimp_text_layer_retrieve (GIMP_TEXT_LAYER (iter->data));
-      else if (GIMP_IS_VECTOR_LAYER (iter->data) && ! gimp_item_is_vector_layer (iter->data))
-        gimp_vector_layer_retrieve (GIMP_VECTOR_LAYER (iter->data));
+      if (GIMP_IS_RASTERIZABLE (iter->data) && gimp_rasterizable_is_rasterized (iter->data))
+        gimp_rasterizable_restore (GIMP_RASTERIZABLE (iter->data));
     }
 
   gimp_image_undo_group_end (image);
@@ -2363,6 +2370,7 @@ layers_new_callback (GtkWidget              *dialog,
                      gdouble                 layer_opacity,
                      GimpFillType            layer_fill_type,
                      GimpLink               *link,
+                     GimpPath               *path,
                      gint                    layer_width,
                      gint                    layer_height,
                      gint                    layer_offset_x,
@@ -2482,6 +2490,7 @@ layers_edit_attributes_callback (GtkWidget              *dialog,
                                  gdouble                 layer_opacity,
                                  GimpFillType            unused1,
                                  GimpLink               *link,
+                                 GimpPath               *path,
                                  gint                    unused2,
                                  gint                    unused3,
                                  gint                    layer_offset_x,
@@ -2511,7 +2520,7 @@ layers_edit_attributes_callback (GtkWidget              *dialog,
       layer_lock_position   != gimp_item_get_lock_position (item)     ||
       layer_lock_visibility != gimp_item_get_lock_visibility (item)   ||
       layer_lock_alpha      != gimp_layer_get_lock_alpha (layer)      ||
-      link)
+      link || path)
     {
       gimp_image_undo_group_start (image,
                                    GIMP_UNDO_GROUP_ITEM_PROPERTIES,
@@ -2545,8 +2554,9 @@ layers_edit_attributes_callback (GtkWidget              *dialog,
       if (layer_opacity != gimp_layer_get_opacity (layer))
         gimp_layer_set_opacity (layer, layer_opacity, TRUE);
 
-      if (layer_offset_x != gimp_item_get_offset_x (item) ||
-          layer_offset_y != gimp_item_get_offset_y (item))
+      if (! gimp_item_is_vector_layer (item) &&
+          (layer_offset_x != gimp_item_get_offset_x (item) ||
+           layer_offset_y != gimp_item_get_offset_y (item)))
         {
           gimp_item_translate (item,
                                layer_offset_x - gimp_item_get_offset_x (item),
@@ -2575,16 +2585,16 @@ layers_edit_attributes_callback (GtkWidget              *dialog,
       if (GIMP_IS_LINK_LAYER (layer) && link)
         gimp_link_layer_set_link (GIMP_LINK_LAYER (layer), link, TRUE);
 
+      if (gimp_item_is_vector_layer (item) && path)
+          gimp_vector_layer_set_path (GIMP_VECTOR_LAYER (layer), path, TRUE);
+
       gimp_image_undo_group_end (image);
       gimp_image_flush (image);
     }
 
-  if (gimp_item_is_text_layer (GIMP_ITEM (layer)))
-    {
-      g_object_set (layer,
-                    "auto-rename", rename_text_layer,
-                    NULL);
-    }
+  if (GIMP_IS_RASTERIZABLE (layer))
+    gimp_rasterizable_set_auto_rename (GIMP_RASTERIZABLE (layer),
+                                       rename_text_layer);
 
   gtk_widget_destroy (dialog);
 }
@@ -2697,37 +2707,6 @@ layers_scale_callback (GtkWidget             *dialog,
     {
       g_warning ("Scale Error: "
                  "Both width and height must be greater than zero.");
-    }
-}
-
-void
-layers_vector_fill_stroke_cmd_callback (GimpAction *action,
-                                        GVariant   *value,
-                                        gpointer    data)
-{
-  GimpImage *image;
-  GimpLayer *layer;
-  GList     *layers;
-  GtkWidget *widget;
-  return_if_no_layers (image, layers, data);
-  return_if_no_widget (widget, data);
-
-  if (g_list_length (layers) != 1)
-    return;
-
-  layer = layers->data;
-
-  if (GIMP_IS_VECTOR_LAYER (layer))
-    {
-      GtkWidget *dialog;
-
-      dialog = vector_layer_options_dialog_new (GIMP_VECTOR_LAYER (layer),
-                                                action_data_get_context (data),
-                                                _("Fill / Stroke"),
-                                                "gimp-vector-layer-stroke",
-                                                GIMP_HELP_LAYER_VECTOR_FILL_STROKE,
-                                                widget);
-      gtk_widget_show (dialog);
     }
 }
 

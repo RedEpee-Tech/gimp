@@ -45,7 +45,6 @@ struct _GimpTextLayer
                                        */
   gboolean      text_parasite_is_old; /* Format before XCF 19. */
   gboolean      auto_rename;
-  gboolean      modified;
 
   const Babl   *convert_format;
 
@@ -65,11 +64,29 @@ GimpLayer * gimp_text_layer_new         (GimpImage     *image,
 GimpText  * gimp_text_layer_get_text    (GimpTextLayer *layer);
 void        gimp_text_layer_set_text    (GimpTextLayer *layer,
                                          GimpText      *text);
-void        gimp_text_layer_discard     (GimpTextLayer *layer);
-void        gimp_text_layer_retrieve    (GimpTextLayer *layer);
 void        gimp_text_layer_set         (GimpTextLayer *layer,
                                          const gchar   *undo_desc,
                                          const gchar   *first_property_name,
                                          ...) G_GNUC_NULL_TERMINATED;
 
 gboolean    gimp_item_is_text_layer     (GimpItem      *item);
+
+void        gimp_text_layer_set_style_overlay_position
+                                        (GimpTextLayer *layer,
+                                         gboolean       positioned,
+                                         gdouble        x,
+                                         gdouble        y);
+gboolean    gimp_text_layer_get_style_overlay_position
+                                        (GimpTextLayer *layer,
+                                         gdouble       *x,
+                                         gdouble       *y);
+gboolean    gimp_text_layer_is_style_overlay_positioned
+                                        (GimpTextLayer *layer);
+void        gimp_text_layer_set_style_overlay_offset
+                                        (GimpTextLayer *layer,
+                                         gdouble        offset_x,
+                                         gdouble        offset_y);
+void        gimp_text_layer_get_style_overlay_offset
+                                        (GimpTextLayer *layer,
+                                         gdouble       *offset_x,
+                                         gdouble       *offset_y);

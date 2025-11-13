@@ -245,8 +245,16 @@ static void             drawText                 (GimpLayer            *layer,
                                                   cairo_t              *cr,
                                                   gdouble               x_res,
                                                   gdouble               y_res);
+static void             drawPath                 (GimpLayer            *layer,
+                                                  gdouble               opacity,
+                                                  cairo_t              *cr,
+                                                  gdouble               x_res,
+                                                  gdouble               y_res);
+static void             draw_path_pattern        (cairo_t              *cr,
+                                                  GimpPattern          *pattern);
 
-static gboolean         draw_layer               (GimpLayer           **layers,
+static gboolean         draw_layer               (GimpImage            *image,
+                                                  GimpLayer           **layers,
                                                   gint                  n_layers,
                                                   GimpProcedureConfig  *config,
                                                   gboolean              single_image,
@@ -664,11 +672,6 @@ pdf_export_image (GimpProcedure        *procedure,
   FILE            *fp;
   gint             i;
   gboolean         layers_as_pages = FALSE;
-  gboolean         fill_background_color;
-
-  g_object_get (config,
-                "fill-background-color", &fill_background_color,
-                NULL);
 
   if (single_image)
     g_object_get (config, "layers-as-pages", &layers_as_pages, NULL);
@@ -761,31 +764,10 @@ pdf_export_image (GimpProcedure        *procedure,
       layers   = gimp_image_get_layers (image);
       n_layers = gimp_core_object_array_get_length ((GObject **) layers);
 
-      /* First fill image with opaque background color
-       * when last layer has transparency and user chose that option.
-       * Later we paint the same layer and others layers with transparency.
-       */
-      if (gimp_drawable_has_alpha (GIMP_DRAWABLE (layers[n_layers - 1])) &&
-          fill_background_color)
-        {
-          GeglColor *color;
-          double     rgb[3];
-
-          cairo_rectangle (cr, 0.0, 0.0,
-                           gimp_image_get_width  (image),
-                           gimp_image_get_height (image));
-          color = gimp_context_get_background ();
-          gegl_color_get_pixel (color, babl_format_with_space ("R'G'B' double", NULL), rgb);
-          cairo_set_source_rgb (cr, rgb[0], rgb[1], rgb[2]);
-          cairo_fill (cr);
-
-          g_object_unref (color);
-        }
-
       /* Now, we should loop over the layers of each image */
       for (j = 0; j < n_layers; j++)
         {
-          if (! draw_layer (layers, n_layers, config,
+          if (! draw_layer (image, layers, n_layers, config,
                             single_image, j, cr, x_res, y_res,
                             gimp_procedure_get_name (procedure),
                             show_progress,
@@ -1448,7 +1430,7 @@ get_cairo_surface (GimpDrawable  *drawable,
       return NULL;
     }
 
-  dest_buffer = gimp_cairo_surface_create_buffer (surface, NULL);
+  dest_buffer = gimp_cairo_surface_get_buffer (surface, NULL, TRUE);
   if (as_mask)
     {
       /* src_buffer represents a mask in "Y u8", "Y u16", etc. formats.
@@ -1460,7 +1442,9 @@ get_cairo_surface (GimpDrawable  *drawable,
       gegl_buffer_set_format (dest_buffer, babl_format ("Y u8"));
     }
 
+  gegl_buffer_freeze_changed (dest_buffer);
   gegl_buffer_copy (src_buffer, NULL, GEGL_ABYSS_NONE, dest_buffer, NULL);
+  gegl_buffer_thaw_changed (dest_buffer);
 
   cairo_surface_mark_dirty (surface);
 
@@ -1802,8 +1786,212 @@ drawText (GimpLayer *layer,
   cairo_restore (cr);
 }
 
+static void
+drawPath (GimpLayer *layer,
+          gdouble    opacity,
+          cairo_t   *cr,
+          gdouble    x_res,
+          gdouble    y_res)
+{
+  GimpVectorLayer *vector_layer;
+  GimpPath        *path    = NULL;
+  GimpPattern     *pattern = NULL;
+  GeglColor       *color;
+  gdouble          rgb[3];
+  gboolean         set_fill;
+  gboolean         set_stroke;
+  gsize            num_strokes;
+  gint            *strokes;
+  gboolean         closed = FALSE;
+
+  vector_layer = GIMP_VECTOR_LAYER (layer);
+  path         = gimp_vector_layer_get_path (vector_layer);
+  set_fill     = gimp_vector_layer_get_enable_fill (vector_layer);
+  set_stroke   = gimp_vector_layer_get_enable_stroke (vector_layer);
+
+  cairo_save (cr);
+
+  /* Create path in Cairo */
+  strokes = gimp_path_get_strokes (path, &num_strokes);
+  for (gint s = 0; s < num_strokes; s++)
+    {
+      GimpPathStrokeType  type;
+      gdouble            *control_points;
+      gsize               num_points;
+      gsize               num_indexes;
+
+      type = gimp_path_stroke_get_points (path, strokes[s], &num_points,
+                                          &control_points, &closed);
+
+      if (type == GIMP_PATH_STROKE_TYPE_BEZIER)
+        {
+          num_indexes = num_points / 2;
+
+          if (num_indexes >= 3)
+            cairo_move_to (cr, control_points[2], control_points[3]);
+
+          for (gint i = 2; i < (num_indexes + (closed ? 2 : - 1)); i += 3)
+            {
+              gdouble delta[6] = { 0 };
+
+              for (gint j = 0; j < 3; j++)
+                {
+                  gint index = ((i + j) % num_indexes) * 2;
+
+                  delta[(j * 2)]     = control_points[index];
+                  delta[(j * 2) + 1] = control_points[index + 1];
+                }
+
+              cairo_curve_to (cr, delta[0], delta[1], delta[2], delta[3],
+                              delta[4], delta[5]);
+            }
+
+          if (closed && num_points > 3)
+            cairo_close_path (cr);
+        }
+    }
+
+  /* Add fill/stroke to Cairo path */
+  if (set_fill)
+    {
+      color = gimp_vector_layer_get_fill_color (vector_layer);
+      if (color)
+        {
+          gegl_color_get_pixel (color,
+                                babl_format_with_space ("R'G'B' double", NULL),
+                                rgb);
+          cairo_set_source_rgb (cr, rgb[0], rgb[1], rgb[2]);
+          g_object_unref (color);
+        }
+      else
+        {
+          pattern = gimp_vector_layer_get_fill_pattern (vector_layer);
+
+          draw_path_pattern (cr, pattern);
+        }
+
+      if (set_stroke)
+        cairo_fill_preserve (cr);
+      else
+        cairo_fill (cr);
+    }
+
+  if (set_stroke)
+    {
+      cairo_line_join_t  join_style;
+      cairo_line_cap_t   cap_style;
+      gdouble            stroke_width;
+      gdouble            miter_limit;
+      gdouble            dash_offset;
+      gsize              num_dashes;
+      gdouble           *dash_pattern;
+
+      color = gimp_vector_layer_get_stroke_color (vector_layer);
+      if (color)
+        {
+          gegl_color_get_pixel (color,
+                                babl_format_with_space ("R'G'B' double", NULL),
+                                rgb);
+          cairo_set_source_rgb (cr, rgb[0], rgb[1], rgb[2]);
+          g_object_unref (color);
+        }
+      else
+        {
+          pattern = gimp_vector_layer_get_stroke_pattern (vector_layer);
+
+          draw_path_pattern (cr, pattern);
+        }
+
+      stroke_width = gimp_vector_layer_get_stroke_width (vector_layer);
+      cairo_set_line_width (cr, stroke_width);
+
+      miter_limit = gimp_vector_layer_get_stroke_miter_limit (vector_layer);
+      cairo_set_miter_limit (cr, miter_limit);
+
+      switch (gimp_vector_layer_get_stroke_cap_style (vector_layer))
+        {
+        case GIMP_CAP_ROUND:
+          cap_style = CAIRO_LINE_CAP_ROUND;
+          break;
+        case GIMP_CAP_SQUARE:
+          cap_style = CAIRO_LINE_CAP_SQUARE;
+          break;
+        default:
+          cap_style = CAIRO_LINE_CAP_BUTT;
+          break;
+        }
+      cairo_set_line_cap (cr, cap_style);
+
+      switch (gimp_vector_layer_get_stroke_join_style (vector_layer))
+        {
+        case GIMP_JOIN_ROUND:
+          join_style = CAIRO_LINE_JOIN_ROUND;
+          break;
+        case GIMP_JOIN_BEVEL:
+          join_style = CAIRO_LINE_JOIN_BEVEL;
+          break;
+        default:
+          join_style = CAIRO_LINE_JOIN_MITER;
+          break;
+        }
+      cairo_set_line_join (cr, join_style);
+
+      dash_offset = gimp_vector_layer_get_stroke_dash_offset (vector_layer);
+      gimp_vector_layer_get_stroke_dash_pattern (vector_layer, &num_dashes,
+                                                 &dash_pattern);
+      if (num_dashes > 0)
+        {
+          for (gint i = 0; i < num_dashes; i++)
+            dash_pattern[i] *= stroke_width;
+
+          cairo_set_dash (cr, dash_pattern, num_dashes, dash_offset);
+        }
+
+      cairo_stroke (cr);
+    }
+
+  cairo_restore (cr);
+}
+
+static void
+draw_path_pattern (cairo_t     *cr,
+                   GimpPattern *pattern)
+{
+  cairo_surface_t *pattern_image = NULL;
+  GimpImage       *temp_image;
+  GimpLayer       *temp_layer;
+  gint             width;
+  gint             height;
+  GeglBuffer      *src_buffer;
+  GeglBuffer      *dst_buffer;
+
+  src_buffer = gimp_pattern_get_buffer (pattern, 0, 0,
+                                        babl_format ("R'G'B' u8"));
+  width      = gegl_buffer_get_width (src_buffer);
+  height     = gegl_buffer_get_height (src_buffer);
+  temp_image = gimp_image_new (width, height, GIMP_RGB);
+  temp_layer = gimp_layer_new (temp_image, NULL, width, height,
+                               GIMP_RGBA_IMAGE, 100.0,
+                               GIMP_LAYER_MODE_NORMAL);
+  gimp_image_insert_layer (temp_image, temp_layer, NULL, 0);
+  dst_buffer = gimp_drawable_get_buffer (GIMP_DRAWABLE (temp_layer));
+  gegl_buffer_copy (src_buffer, NULL, GEGL_ABYSS_NONE, dst_buffer, NULL);
+
+  g_object_unref (src_buffer);
+  g_object_unref (dst_buffer);
+
+  pattern_image = get_cairo_surface (GIMP_DRAWABLE (temp_layer), FALSE,
+                                     NULL);
+  gimp_image_delete (temp_image);
+
+  cairo_set_source_surface (cr, pattern_image, 0, 0);
+  cairo_surface_destroy (pattern_image);
+  cairo_pattern_set_extend (cairo_get_source (cr), CAIRO_EXTEND_REPEAT);
+}
+
 static gboolean
-draw_layer (GimpLayer           **layers,
+draw_layer (GimpImage            *image,
+            GimpLayer           **layers,
             gint                  n_layers,
             GimpProcedureConfig  *config,
             gboolean              single_image,
@@ -1826,10 +2014,12 @@ draw_layer (GimpLayer           **layers,
   gboolean   reverse_order   = FALSE;
   gboolean   root_layers_only;
   gboolean   convert_text;
+  gboolean   fill_background_color;
 
   g_object_get (config,
-                "vectorize",           &vectorize,
-                "ignore-hidden",       &ignore_hidden,
+                "vectorize",             &vectorize,
+                "ignore-hidden",         &ignore_hidden,
+                "fill-background-color", &fill_background_color,
                 NULL);
 
   if (single_image)
@@ -1861,7 +2051,7 @@ draw_layer (GimpLayer           **layers,
 
       for (i = 0; children[i] != NULL; i++)
         {
-          if (! draw_layer ((GimpLayer **) children, children_num,
+          if (! draw_layer (image, (GimpLayer **) children, children_num,
                             config, single_image, i,
                             cr, x_res, y_res, name,
                             show_progress,
@@ -1884,9 +2074,42 @@ draw_layer (GimpLayer           **layers,
       cairo_surface_t *mask_image = NULL;
       GimpLayerMask   *mask       = NULL;
       gint             x, y;
+      gboolean         fill_page  = FALSE;
 
       if (show_progress)
         gimp_progress_update (progress_start);
+
+      /* First fill layer with opaque background color when either
+       * multi-layered or this is the first layer at the top level
+       * and user chose that option.
+       * Later we paint over it with the layer's content.
+       */
+      if (layers_as_pages)
+        {
+          if ((root_layers_only && (layer_level == 0 || j == 0)) ||
+              ! root_layers_only)
+            fill_page = TRUE;
+        }
+      else
+        {
+          if (layer_level == 0 && j == 0)
+            fill_page = TRUE;
+        }
+
+      if (fill_page && fill_background_color)
+        {
+          GeglColor *color = NULL;
+          gdouble    rgb[3];
+
+          cairo_rectangle (cr, 0.0, 0.0,
+                           gimp_image_get_width  (image),
+                           gimp_image_get_height (image));
+          color = gimp_context_get_background ();
+          gegl_color_get_pixel (color, babl_format ("R'G'B' double"), rgb);
+          cairo_set_source_rgb (cr, rgb[0], rgb[1], rgb[2]);
+          cairo_fill (cr);
+          g_clear_object (&color);
+        }
 
       /* Only render layer mask if it's not disabled */
       if (gimp_layer_get_mask (layer) && gimp_layer_get_apply_mask (layer))
@@ -1903,7 +2126,9 @@ draw_layer (GimpLayer           **layers,
 
       gimp_drawable_get_offsets (GIMP_DRAWABLE (layer), &x, &y);
 
-      if (! gimp_item_is_text_layer (GIMP_ITEM (layer)) || convert_text)
+      if ((! gimp_item_is_text_layer (GIMP_ITEM (layer))    &&
+           ! gimp_item_is_vector_layer (GIMP_ITEM (layer))) ||
+          convert_text)
         {
           /* For raster layers */
 
@@ -1953,10 +2178,14 @@ draw_layer (GimpLayer           **layers,
 
           g_object_unref (layer_color);
         }
-      else
+      else if (gimp_item_is_text_layer (GIMP_ITEM (layer)))
         {
           /* For text layers */
           drawText (layer, opacity, cr, x_res, y_res);
+        }
+      else if (gimp_item_is_vector_layer (GIMP_ITEM (layer)))
+        {
+          drawPath (layer, opacity, cr, x_res, y_res);
         }
 
       /* draw new page if "layers as pages" option is checked */

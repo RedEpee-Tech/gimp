@@ -175,11 +175,11 @@ gimp_layer_new_from_pixbuf (GimpImage     *image,
  * Since: 2.8
  */
 GimpLayer *
-gimp_layer_new_from_surface (GimpImage            *image,
-                             const gchar          *name,
-                             cairo_surface_t      *surface,
-                             gdouble               progress_start,
-                             gdouble               progress_end)
+gimp_layer_new_from_surface (GimpImage       *image,
+                             const gchar     *name,
+                             cairo_surface_t *surface,
+                             gdouble          progress_start,
+                             gdouble          progress_end)
 {
   GeglBuffer    *src_buffer;
   GeglBuffer    *dest_buffer;
@@ -219,7 +219,7 @@ gimp_layer_new_from_surface (GimpImage            *image,
   if (layer == NULL)
     return NULL;
 
-  src_buffer = gimp_cairo_surface_create_buffer (surface, NULL);
+  src_buffer = gimp_cairo_surface_get_buffer (surface, NULL, FALSE);
   dest_buffer = gimp_drawable_get_buffer (GIMP_DRAWABLE (layer));
 
   gegl_buffer_copy (src_buffer, NULL, GEGL_ABYSS_NONE,

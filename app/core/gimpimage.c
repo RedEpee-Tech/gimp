@@ -1175,6 +1175,7 @@ gimp_image_finalize (GObject *object)
   g_clear_object (&private->channels);
   g_clear_object (&private->paths);
   g_clear_object (&private->quick_mask_color);
+  g_clear_pointer (&private->quick_mask_selected, g_list_free);
 
   if (private->layer_stack)
     {
@@ -4992,15 +4993,15 @@ gimp_image_set_selected_items (GimpImage *image,
 {
   g_return_if_fail (GIMP_IS_IMAGE (image));
 
-  if (item_type == GIMP_TYPE_LAYER)
+  if (g_type_is_a (item_type, GIMP_TYPE_LAYER))
     {
       gimp_image_set_selected_layers (image, items);
     }
-  else if (item_type == GIMP_TYPE_CHANNEL)
+  else if (g_type_is_a (item_type, GIMP_TYPE_CHANNEL))
     {
       gimp_image_set_selected_channels (image, items);
     }
-  else if (item_type == GIMP_TYPE_PATH)
+  else if (g_type_is_a (item_type, GIMP_TYPE_PATH))
     {
       gimp_image_set_selected_paths (image, items);
     }
@@ -5665,7 +5666,6 @@ gimp_image_add_layers (GimpImage   *image,
 
       gimp_image_add_layer (image, GIMP_LAYER (new_item),
                             parent, position, TRUE);
-      gimp_drawable_enable_resize_undo (GIMP_DRAWABLE (new_item));
       position++;
     }
 

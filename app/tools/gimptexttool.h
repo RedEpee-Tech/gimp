@@ -69,6 +69,9 @@ struct _GimpTextTool
   GtkWidget      *style_overlay;
   GtkWidget      *style_editor;
 
+  /* style overlay dragging: */
+  gboolean        overlay_dragging;
+
   gboolean        selecting;
   GtkTextIter     select_start_iter;
   gboolean        select_words;
@@ -112,6 +115,8 @@ void       gimp_text_tool_delete_selection       (GimpTextTool  *text_tool);
 void       gimp_text_tool_cut_clipboard          (GimpTextTool  *text_tool);
 void       gimp_text_tool_copy_clipboard         (GimpTextTool  *text_tool);
 void       gimp_text_tool_paste_clipboard        (GimpTextTool  *text_tool);
+void       gimp_text_tool_paste_clipboard_unformatted
+                                                 (GimpTextTool  *text_tool);
 void       gimp_text_tool_toggle_tag             (GimpTextTool  *text_tool,
                                                   GtkTextTag    *tag);
 
@@ -127,3 +132,6 @@ void       gimp_text_tool_clear_layout           (GimpTextTool  *text_tool);
 gboolean   gimp_text_tool_ensure_layout          (GimpTextTool  *text_tool);
 void       gimp_text_tool_apply                  (GimpTextTool  *text_tool,
                                                   gboolean       push_undo);
+
+void       gimp_text_tool_restore_on_canvas_editor_position
+                                                 (GimpTextTool  *text_tool);

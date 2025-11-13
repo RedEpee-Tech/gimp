@@ -197,6 +197,7 @@ app/core/gimppattern-save.c
 app/core/gimppatternclipboard.c
 app/core/gimppdbprogress.c
 app/core/gimpprogress.c
+app/core/gimprasterizable.c
 app/core/gimpselection.c
 app/core/gimpsettings.c
 app/core/gimpstrokeoptions.c
@@ -255,7 +256,6 @@ app/dialogs/user-install-dialog.c
 app/dialogs/path-export-dialog.c
 app/dialogs/path-import-dialog.c
 app/dialogs/path-options-dialog.c
-app/dialogs/vector-layer-options-dialog.c
 app/dialogs/welcome-dialog.c
 
 app/display/display-enums.c
@@ -274,6 +274,7 @@ app/display/gimpdisplayshell-scale-dialog.c
 app/display/gimpdisplayshell-title.c
 app/display/gimpdisplayshell-tool-events.c
 app/display/gimpdisplayshell-utils.c
+app/display/gimpimagewindow.c
 app/display/gimpmodifiersmanager.c
 app/display/gimpnavigationeditor.c
 app/display/gimpstatusbar.c
@@ -393,6 +394,7 @@ app/pdb/layer-cmds.c
 app/pdb/link-layer-cmds.c
 app/pdb/path-cmds.c
 app/pdb/pdb-cmds.c
+app/pdb/rasterizable-cmds.c
 app/pdb/resource-cmds.c
 app/pdb/selection-cmds.c
 app/pdb/text-layer-cmds.c

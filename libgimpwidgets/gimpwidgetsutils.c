@@ -1116,27 +1116,35 @@ gimp_widget_get_render_space (GtkWidget       *widget,
 
 /**
  * gimp_widget_set_native_handle:
- * @widget: a #GtkWindow
- * @handle: (out): pointer to store the native handle as a #GBytes.
+ * @widget: a widget to get a handle for.
+ * @window_handle: (inout): pointer to store the native handle as a [struct@GLib.Bytes].
  *
- * This function is used to store the handle representing @window into
- * @handle so that it can later be reused to set other windows as
- * transient to this one (even in other processes, such as plug-ins).
+ * This function is to be used in custom widget construction to store
+ * the window handle representing @widget into @window_handle so that it
+ * can later be reused to set other windows as transient to this one
+ * (even across processes, such as in-between plug-ins), e.g. using
+ * [func@GimpUi.window_set_transient_for].
  *
- * Depending on the platform, the actual content of @handle can be
- * various types. Moreover it may be filled asynchronously in a
- * callback, so you should not assume that @handle is set after running
+ * Depending on the platform, the actual content of @window_handle can be
+ * various types and should therefore be considered an opaque data.
+ * Moreover it may be filled asynchronously in a callback, so you should
+ * not assume that @window_handle is set after running
  * this function.
  *
  * This convenience function is safe to use even before @widget is
  * visible as it will set the handle once it is mapped.
+ *
+ * Free @window_handle on `dispose()` or `finalize()` with
+ * [func@GimpUi.widget_free_native_handle].
+ *
+ * Since: 3.0
  */
 void
 gimp_widget_set_native_handle (GtkWidget  *widget,
-                               GBytes    **handle)
+                               GBytes    **window_handle)
 {
   g_return_if_fail (GTK_IS_WIDGET (widget));
-  g_return_if_fail (handle != NULL && *handle == NULL);
+  g_return_if_fail (window_handle != NULL && *window_handle == NULL);
 
   /* This may seem overly complicated but there is a reason: "map-event" can
    * only be received by widgets with their own windows (see description of
@@ -1151,74 +1159,83 @@ gimp_widget_set_native_handle (GtkWidget  *widget,
       gtk_widget_add_events (widget, GDK_STRUCTURE_MASK);
       g_signal_connect (widget, "map-event",
                         G_CALLBACK (gimp_widget_set_handle_on_mapped),
-                        handle);
+                        window_handle);
     }
   else
     {
       g_signal_connect (widget, "realize",
                         G_CALLBACK (gimp_widget_set_handle_on_realize),
-                        handle);
+                        window_handle);
     }
 
   if (gtk_widget_get_realized (widget))
-    gimp_widget_set_handle_on_mapped (widget, NULL, handle);
+    gimp_widget_set_handle_on_mapped (widget, NULL, window_handle);
 }
 
 /**
  * gimp_widget_free_native_handle:
- * @widget: a #GtkWindow
- * @window_handle: (out): same pointer previously passed to set_native_handle
+ * @widget: a widget we got a handle for.
+ * @window_handle: (inout): same pointer previously passed to [func@GimpUi.widget_set_native_handle].
  *
- * Disposes a widget's native window handle created asynchronously after
- * a previous call to gimp_widget_set_native_handle.
- * This disposes what the pointer points to, a *GBytes, if any.
- * Call this when the widget and the window handle it owns is being disposed.
+ * Disposes a widget's native window handle created, possibly
+ * asynchronously, by a previous call to [func@GimpUi.widget_set_native_handle].
  *
- * This should be called at least once, paired with set_native_handle.
- * This knows how to free @window_handle, especially that on some platforms,
- * an asynchronous callback must be canceled else it might call back
- * with the pointer, after the widget and its private is freed.
+ * Depending on the platform, this function may also execute other
+ * necessary clean up so you should call it and not simply free the
+ * [struct@GLib.Bytes] yourself.
  *
- * This is safe to call when deferenced @window_handle is NULL,
- * when the window handle was never actually set,
- * on Wayland where actual setting is asynchronous.
+ * You should call this function in the `dispose()` implementation of
+ * your custom widget **before** chaining up with the parent class'
+ * `dispose()` call. The first call to the parent's `dispose()` will
+ * destroy the `GdkWindow` which will prevent this function to do part
+ * of its cleanup when run after. This may result in crashes on some
+ * platforms.
  *
- * !!! The word "handle" has two meanings.
- * A "window handle" is an ID of a window.
- * A "handle" also commonly means a pointer to a pointer, in this case **GBytes.
- * @window_handle is both kinds of handle.
+ * This is safe to call even if deferenced @window_handle is %NULL, i.e.
+ * that you don't have to check if the window handle was actually set.
+ *
+ * Since: 3.0
  */
 void
 gimp_widget_free_native_handle (GtkWidget  *widget,
                                 GBytes    **window_handle)
 {
+  GtkWidget *toplevel = gtk_widget_get_toplevel (widget);
+#ifdef GDK_WINDOWING_WAYLAND
+  GdkWindow *surface;
+#endif
+
   g_return_if_fail (GTK_IS_WIDGET (widget));
-  /* window-handle as pointer to pointer must not be NULL. */
   g_return_if_fail (window_handle != NULL);
 
-  #ifdef GDK_WINDOWING_WAYLAND
-  /* Cancel the asynch callback which has a pointer into widget's private.
-   * Cancel regardless whether callback has already come.
-   */
-  if (GDK_IS_WAYLAND_DISPLAY (gdk_display_get_default ()) &&
-      /* The GdkWindow is likely already destroyed. */
-      gtk_widget_get_window (widget) != NULL)
-    gdk_wayland_window_unexport_handle (gtk_widget_get_window (widget));
-  #endif
+  g_signal_handlers_disconnect_by_func (toplevel,
+                                        G_CALLBACK (gimp_widget_set_handle_on_mapped),
+                                        window_handle);
+  g_signal_handlers_disconnect_by_func (widget,
+                                        G_CALLBACK (gimp_widget_set_handle_on_mapped),
+                                        window_handle);
+  g_signal_handlers_disconnect_by_func (widget,
+                                        G_CALLBACK (gimp_widget_set_handle_on_realize),
+                                        window_handle);
 
-  /* On some platforms, window_handle may be NULL when an asynch callback has not come yet.
-   * The dereferenced pointer is the window handle.
-   */
-  if (*window_handle != NULL)
+#ifdef GDK_WINDOWING_WAYLAND
+  surface = gtk_widget_get_window (widget);
+
+  if (surface != NULL && GDK_IS_WAYLAND_WINDOW (surface))
     {
-      /* On all platforms *window_handle is-a allocated GBytes.
-       * A GBytes is NOT a GObject and there is no way to ensure is-a GBytes.
-       *
-       * g_clear_pointer takes a pointer to pointer and unrefs at the pointer.
-       */
-      g_clear_pointer (window_handle, g_bytes_unref);
+      gint count;
+
+      count = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (surface),
+                                                  "gimp_widget_set_handle_on_mapped-call-count"));
+      g_object_set_data (G_OBJECT (surface),
+                         "gimp_widget_set_handle_on_mapped-call-count",
+                         NULL);
+      while (count--)
+        gdk_wayland_window_unexport_handle (surface);
     }
-  /* Else no GBytes was ever allocated. */
+#endif
+
+  g_clear_pointer (window_handle, g_bytes_unref);
 }
 
 /**
@@ -1370,6 +1387,15 @@ gimp_widget_set_handle_on_mapped (GtkWidget    *widget,
 #ifdef GDK_WINDOWING_WAYLAND
   if (GDK_IS_WAYLAND_WINDOW (surface))
     {
+      gint count;
+
+      count = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (surface),
+                                                  "gimp_widget_set_handle_on_mapped-call-count"));
+      count += 1;
+      g_object_set_data (G_OBJECT (surface),
+                         "gimp_widget_set_handle_on_mapped-call-count",
+                         GINT_TO_POINTER (count));
+
       /* I don't run this on "realize" event because somehow it locks
        * the whole processus in Wayland. The "map-event" happens
        * slightly after the window became visible and I didn't

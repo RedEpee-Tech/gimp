@@ -42,12 +42,11 @@
 #include "gimpimage-color-profile.h"
 #include "gimpimage-undo.h"
 #include "gimpimage-undo-push.h"
-#include "gimpitemtree.h"
-#include "gimpobjectqueue.h"
-#include "gimpprogress.h"
-
 #include "gimplink.h"
 #include "gimplinklayer.h"
+#include "gimpobjectqueue.h"
+#include "gimpprogress.h"
+#include "gimprasterizable.h"
 
 #include "gimp-intl.h"
 
@@ -65,7 +64,6 @@ enum
 {
   PROP_0,
   PROP_LINK,
-  PROP_AUTO_RENAME,
   PROP_SCALED_ONLY,
   N_PROPS
 };
@@ -74,7 +72,6 @@ struct _GimpLinkLayerPrivate
 {
   GimpLink              *link;
   gboolean               scaled_only;
-  gboolean               auto_rename;
 
   GimpMatrix3            matrix;
   gint                   offset_x;
@@ -86,6 +83,9 @@ struct _GimpLinkLayerPrivate
    */
   gboolean               keep_monitoring;
 };
+
+static void       gimp_link_layer_rasterizable_iface_init
+                                                 (GimpRasterizableInterface *iface);
 
 static void       gimp_link_layer_finalize       (GObject           *object);
 static void       gimp_link_layer_get_property   (GObject           *object,
@@ -102,10 +102,6 @@ static gint64     gimp_link_layer_get_memsize    (GimpObject        *object,
 
 static GimpItem * gimp_link_layer_duplicate      (GimpItem          *item,
                                                   GType              new_type);
-static gboolean   gimp_link_layer_rename         (GimpItem          *item,
-                                                  const gchar       *new_name,
-                                                  const gchar       *undo_desc,
-                                                  GError           **error);
 
 static void       gimp_link_layer_translate      (GimpItem              *item,
                                                   gdouble                offset_x,
@@ -140,6 +136,9 @@ static void       gimp_link_layer_push_undo      (GimpDrawable      *drawable,
                                                   gint               width,
                                                   gint               height);
 
+static void       gimp_link_layer_set_rasterized (GimpRasterizable  *rasterizable,
+                                                  gboolean           rasterized);
+
 static void       gimp_link_layer_convert_type   (GimpLayer         *layer,
                                                   GimpImage         *dest_image,
                                                   const Babl        *new_format,
@@ -162,7 +161,10 @@ static gboolean
                                                   gint              *new_offset_y);
 
 
-G_DEFINE_TYPE_WITH_PRIVATE (GimpLinkLayer, gimp_link_layer, GIMP_TYPE_LAYER)
+G_DEFINE_TYPE_WITH_CODE (GimpLinkLayer, gimp_link_layer, GIMP_TYPE_LAYER,
+                         G_ADD_PRIVATE (GimpLinkLayer)
+                         G_IMPLEMENT_INTERFACE (GIMP_TYPE_RASTERIZABLE,
+                                                gimp_link_layer_rasterizable_iface_init))
 
 #define parent_class gimp_link_layer_parent_class
 
@@ -190,7 +192,7 @@ gimp_link_layer_class_init (GimpLinkLayerClass *klass)
   viewable_class->default_name      = _("Link Layer");
 
   item_class->duplicate             = gimp_link_layer_duplicate;
-  item_class->rename                = gimp_link_layer_rename;
+  item_class->rename                = gimp_rasterizable_rename;
   item_class->translate             = gimp_link_layer_translate;
   item_class->scale                 = gimp_link_layer_scale;
   item_class->transform             = gimp_link_layer_transform;
@@ -214,12 +216,6 @@ gimp_link_layer_class_init (GimpLinkLayerClass *klass)
                                                             GIMP_PARAM_READWRITE |
                                                             GIMP_PARAM_STATIC_STRINGS);
 
-  link_layer_props[PROP_AUTO_RENAME] = g_param_spec_boolean ("auto-rename",
-                                                             NULL, NULL,
-                                                             TRUE,
-                                                             GIMP_PARAM_READWRITE |
-                                                             GIMP_PARAM_STATIC_STRINGS);
-
   link_layer_props[PROP_SCALED_ONLY] = g_param_spec_boolean ("scaled-only",
                                                              NULL, NULL,
                                                              FALSE,
@@ -237,12 +233,17 @@ gimp_link_layer_init (GimpLinkLayer *layer)
   gimp_matrix3_identity (&layer->p->matrix);
 
   layer->p->scaled_only   = FALSE;
-  layer->p->auto_rename   = FALSE;
   layer->p->offset_x      = 0;
   layer->p->offset_y      = 0;
   layer->p->interpolation = GIMP_INTERPOLATION_NONE;
 
   layer->p->keep_monitoring = FALSE;
+}
+
+static void
+gimp_link_layer_rasterizable_iface_init (GimpRasterizableInterface *iface)
+{
+  iface->set_rasterized = gimp_link_layer_set_rasterized;
 }
 
 static void
@@ -268,9 +269,6 @@ gimp_link_layer_get_property (GObject      *object,
     case PROP_LINK:
       g_value_set_object (value, layer->p->link);
       break;
-    case PROP_AUTO_RENAME:
-      g_value_set_boolean (value, layer->p->auto_rename);
-      break;
     case PROP_SCALED_ONLY:
       g_value_set_boolean (value, layer->p->scaled_only);
       break;
@@ -293,9 +291,6 @@ gimp_link_layer_set_property (GObject      *object,
     {
     case PROP_LINK:
       gimp_link_layer_set_link (layer, g_value_get_object (value), FALSE);
-      break;
-    case PROP_AUTO_RENAME:
-      layer->p->auto_rename = g_value_get_boolean (value);
       break;
     case PROP_SCALED_ONLY:
       layer->p->scaled_only = g_value_get_boolean (value);
@@ -340,13 +335,13 @@ gimp_link_layer_duplicate (GimpItem *item,
       gint           width;
       gint           height;
 
+      gimp_config_sync (G_OBJECT (layer), G_OBJECT (new_layer), 0);
+
       if (layer->p->link)
         {
           link = gimp_link_duplicate (layer->p->link);
           gimp_link_layer_set_link (new_layer, link, FALSE);
         }
-
-      gimp_config_sync (G_OBJECT (layer), G_OBJECT (new_layer), 0);
 
       buffer = gimp_drawable_get_buffer (GIMP_DRAWABLE (layer));
       width  = gegl_buffer_get_width (buffer);
@@ -374,7 +369,8 @@ gimp_link_layer_duplicate (GimpItem *item,
                              gimp_drawable_get_buffer (GIMP_DRAWABLE (new_layer)), NULL);
 
       new_layer->p->scaled_only   = layer->p->scaled_only;
-      new_layer->p->auto_rename   = layer->p->auto_rename;
+      gimp_rasterizable_set_auto_rename (GIMP_RASTERIZABLE (new_layer),
+                                         gimp_rasterizable_get_auto_rename (GIMP_RASTERIZABLE (layer)));
       new_layer->p->matrix        = layer->p->matrix;
       new_layer->p->offset_x      = layer->p->offset_x;
       new_layer->p->offset_y      = layer->p->offset_y;
@@ -382,26 +378,13 @@ gimp_link_layer_duplicate (GimpItem *item,
 
       new_layer->p->keep_monitoring = FALSE;
 
+      if (gimp_rasterizable_is_rasterized (GIMP_RASTERIZABLE (layer)))
+        gimp_rasterizable_set_undo_rasterized (GIMP_RASTERIZABLE (new_layer), TRUE);
+
       g_clear_object (&link);
     }
 
   return new_item;
-}
-
-static gboolean
-gimp_link_layer_rename (GimpItem     *item,
-                        const gchar  *new_name,
-                        const gchar  *undo_desc,
-                        GError      **error)
-{
-  if (GIMP_ITEM_CLASS (parent_class)->rename (item, new_name, undo_desc, error))
-    {
-      g_object_set (item, "auto-rename", FALSE, NULL);
-
-      return TRUE;
-    }
-
-  return FALSE;
 }
 
 static void
@@ -678,6 +661,24 @@ gimp_link_layer_push_undo (GimpDrawable *drawable,
 }
 
 static void
+gimp_link_layer_set_rasterized (GimpRasterizable *rasterizable,
+                                gboolean          rasterized)
+{
+  GimpLinkLayer *layer = GIMP_LINK_LAYER (rasterizable);
+
+  if (rasterized)
+    {
+      gimp_link_freeze (layer->p->link);
+    }
+  else
+    {
+      gimp_link_thaw (layer->p->link);
+      gimp_matrix3_identity (&layer->p->matrix);
+      gimp_link_layer_render_link (layer);
+    }
+}
+
+static void
 gimp_link_layer_convert_type (GimpLayer         *layer,
                               GimpImage         *dest_image,
                               const Babl        *new_format,
@@ -822,44 +823,6 @@ gimp_link_layer_set_link_with_matrix (GimpLinkLayer         *layer,
   return rendered;
 }
 
-/**
- * gimp_link_layer_discard:
- * @layer: a #GimpLinkLayer
- *
- * Discards the link. This makes @layer behave like a
- * normal layer.
- */
-void
-gimp_link_layer_discard (GimpLinkLayer *layer)
-{
-  g_return_if_fail (GIMP_IS_LINK_LAYER (layer));
-  g_return_if_fail (gimp_item_is_attached (GIMP_ITEM (layer)));
-
-  gimp_image_undo_push_link_layer (gimp_item_get_image (GIMP_ITEM (layer)),
-                                   _("Discard Link"), layer);
-
-  gimp_link_freeze (layer->p->link);
-
-  /* Triggers thumbnail update. */
-  gimp_drawable_update_all (GIMP_DRAWABLE (layer));
-  /* Triggers contextual menu update. */
-  gimp_image_flush (gimp_item_get_image (GIMP_ITEM (layer)));
-}
-
-void
-gimp_link_layer_monitor (GimpLinkLayer *layer)
-{
-  g_return_if_fail (GIMP_IS_LINK_LAYER (layer));
-  g_return_if_fail (gimp_item_is_attached (GIMP_ITEM (layer)));
-
-  gimp_image_undo_push_link_layer (gimp_item_get_image (GIMP_ITEM (layer)),
-                                   _("Monitor Link"), layer);
-
-  gimp_link_thaw (layer->p->link);
-  gimp_matrix3_identity (&layer->p->matrix);
-  gimp_link_layer_render_link (layer);
-}
-
 gboolean
 gimp_link_layer_is_monitored (GimpLinkLayer *layer)
 {
@@ -878,12 +841,16 @@ gimp_link_layer_get_transform (GimpLinkLayer         *layer,
 {
   g_return_val_if_fail (GIMP_IS_LINK_LAYER (layer), FALSE);
 
-  *matrix        = layer->p->matrix;
-  *offset_x      = layer->p->offset_x;
-  *offset_y      = layer->p->offset_y;
-  *interpolation = layer->p->interpolation;
+  if (matrix)
+    *matrix = layer->p->matrix;
+  if (offset_x)
+    *offset_x = layer->p->offset_x;
+  if (offset_y)
+    *offset_y = layer->p->offset_y;
+  if (interpolation)
+    *interpolation = layer->p->interpolation;
 
-  return ! gimp_matrix3_is_identity (matrix);
+  return ! gimp_matrix3_is_identity (&layer->p->matrix);
 }
 
 gboolean
@@ -947,9 +914,8 @@ gimp_link_layer_set_xcf_flags (GimpLinkLayer *layer,
 {
   g_return_if_fail (GIMP_IS_LINK_LAYER (layer));
 
-  g_object_set (layer,
-                "auto-rename", (flags & LINK_LAYER_XCF_DONT_AUTO_RENAME) == 0,
-                NULL);
+  gimp_rasterizable_set_auto_rename (GIMP_RASTERIZABLE (layer),
+                                     (flags & LINK_LAYER_XCF_DONT_AUTO_RENAME) == 0);
 
   if ((flags & LINK_LAYER_XCF_MODIFIED) != 0)
     gimp_link_freeze (layer->p->link);
@@ -962,7 +928,7 @@ gimp_link_layer_get_xcf_flags (GimpLinkLayer *link_layer)
 
   g_return_val_if_fail (GIMP_IS_LINK_LAYER (link_layer), 0);
 
-  if (! link_layer->p->auto_rename)
+  if (! gimp_rasterizable_get_auto_rename (GIMP_RASTERIZABLE (link_layer)))
     flags |= LINK_LAYER_XCF_DONT_AUTO_RENAME;
 
   if (! gimp_link_is_monitored (link_layer->p->link))
@@ -1062,33 +1028,9 @@ gimp_link_layer_render_link (GimpLinkLayer *layer)
         }
     }
 
-  if (layer->p->auto_rename)
-    {
-      GimpItem *item = GIMP_ITEM (layer);
-      gchar    *name = NULL;
-
-      if (layer->p->link)
-        {
-          name = g_strdup (gimp_object_get_name (layer->p->link));
-        }
-
-      if (! name || ! name[0])
-        {
-          g_free (name);
-          name = g_strdup (_("Link Layer"));
-        }
-
-      if (gimp_item_is_attached (item))
-        {
-          gimp_item_tree_rename_item (gimp_item_get_tree (item), item,
-                                      name, FALSE, NULL);
-          g_free (name);
-        }
-      else
-        {
-          gimp_object_take_name (GIMP_OBJECT (layer), name);
-        }
-    }
+  gimp_rasterizable_auto_rename (GIMP_RASTERIZABLE (layer),
+                                 GIMP_OBJECT (layer->p->link),
+                                 NULL);
 
   gimp_gegl_buffer_copy (buffer, NULL, GEGL_ABYSS_NONE,
                          gimp_drawable_get_buffer (drawable), NULL);

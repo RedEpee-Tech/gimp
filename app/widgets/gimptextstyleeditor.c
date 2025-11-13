@@ -33,6 +33,10 @@
 #include "core/gimpcontainer.h"
 #include "core/gimpcontext.h"
 
+#include "tools/tools-types.h"
+#include "tools/tool_manager.h"
+#include "tools/gimptexttool.h"
+
 #include "text/gimptext.h"
 #include "text/gimpfont.h"
 
@@ -42,6 +46,7 @@
 #include "gimptextbuffer.h"
 #include "gimptextstyleeditor.h"
 #include "gimptexttag.h"
+#include "gimpwidgets-constructors.h"
 #include "gimpwidgets-utils.h"
 
 #include "gimp-intl.h"
@@ -120,6 +125,20 @@ static void      gimp_text_style_editor_set_kerning       (GimpTextStyleEditor *
 static void      gimp_text_style_editor_update            (GimpTextStyleEditor *editor);
 static gboolean  gimp_text_style_editor_update_idle       (GimpTextStyleEditor *editor);
 
+static gboolean  gimp_text_style_editor_notify_enter_dnd_handler
+                                                          (GtkWidget           *widget,
+                                                           GdkEventCrossing     event,
+                                                           gpointer             user_data);
+
+static gboolean  gimp_text_style_editor_notify_leave_dnd_handler
+                                                          (GtkWidget           *widget,
+                                                           GdkEventCrossing     event,
+                                                           gpointer             user_data);
+
+static void      gimp_text_style_editor_restore_position_callback
+                                                          (GtkWidget           *button,
+                                                           GimpTextStyleEditor *editor);
+
 
 G_DEFINE_TYPE (GimpTextStyleEditor, gimp_text_style_editor,
                GTK_TYPE_BOX)
@@ -193,15 +212,57 @@ gimp_text_style_editor_init (GimpTextStyleEditor *editor)
 {
   GtkWidget *image;
   GeglColor *color;
+  GtkWidget *main_hbox;
+  GtkWidget *content_vbox;
+  GtkWidget *dnd_icon;
 
-  gtk_orientable_set_orientation (GTK_ORIENTABLE (editor),
-                                  GTK_ORIENTATION_VERTICAL);
-  gtk_box_set_spacing (GTK_BOX (editor), 2);
+  main_hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_box_pack_start (GTK_BOX (editor), main_hbox, TRUE, TRUE, 0);
+  gtk_widget_show (main_hbox);
+
+  /* XXX: In GTK4, GtkEventBox will be deprecated
+   * See: https://docs.gtk.org/gtk4/migrating-3to4.html#stop-using-gtkeventbox
+   * In GTK4, all widgets will receive events directly,
+   * so this widget will be converted to a simple GtkWidget
+   * and event handling (click, motion, enter, leave) will be done
+   * via signal handlers directly on the widget.
+   */
+  editor->dnd_handle = gtk_event_box_new ();
+  gtk_box_pack_start (GTK_BOX (main_hbox), editor->dnd_handle, FALSE, FALSE, 0);
+  gtk_widget_set_margin_start (editor->dnd_handle, 4);
+  gtk_widget_set_margin_end (editor->dnd_handle, 4);
+  gtk_widget_show (editor->dnd_handle);
+
+  gtk_widget_add_events (editor->dnd_handle,
+                         GDK_BUTTON_PRESS_MASK   |
+                         GDK_BUTTON_RELEASE_MASK |
+                         GDK_POINTER_MOTION_MASK);
+
+  g_signal_connect (editor->dnd_handle, "enter-notify-event",
+                    G_CALLBACK (gimp_text_style_editor_notify_enter_dnd_handler),
+                    editor);
+  g_signal_connect (editor->dnd_handle, "leave-notify-event",
+                    G_CALLBACK (gimp_text_style_editor_notify_leave_dnd_handler),
+                    editor);
+
+  /* TODO: update dnd_icon with a 6-dot one */
+  dnd_icon = gtk_image_new_from_icon_name (GIMP_ICON_TOOL_MOVE,
+                                           GTK_ICON_SIZE_MENU);
+  gtk_container_add (GTK_CONTAINER (editor->dnd_handle), dnd_icon);
+  gtk_widget_show (dnd_icon);
+
+  gimp_help_set_help_data (editor->dnd_handle,
+                           _("Drag to move the text style editor"),
+                           NULL);
+
+  content_vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
+  gtk_box_pack_start (GTK_BOX (main_hbox), content_vbox, TRUE, TRUE, 0);
+  gtk_widget_show (content_vbox);
 
   /*  upper row  */
 
   editor->upper_hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 2);
-  gtk_box_pack_start (GTK_BOX (editor), editor->upper_hbox, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (content_vbox), editor->upper_hbox, FALSE, FALSE, 0);
   gtk_widget_show (editor->upper_hbox);
 
   editor->font_entry = gimp_container_entry_new (NULL, NULL,
@@ -227,10 +288,27 @@ gimp_text_style_editor_init (GimpTextStyleEditor *editor)
                     G_CALLBACK (gimp_text_style_editor_size_changed),
                     editor);
 
+  /* Restore position button */
+  editor->restore_position_button = gimp_icon_button_new (GIMP_ICON_RESET, NULL);
+  gtk_button_set_relief (GTK_BUTTON (editor->restore_position_button),
+                         GTK_RELIEF_NONE);
+  gtk_image_set_from_icon_name (GTK_IMAGE (gtk_bin_get_child (GTK_BIN (editor->restore_position_button))),
+                                GIMP_ICON_RESET, GTK_ICON_SIZE_MENU);
+
+  gimp_help_set_help_data (editor->restore_position_button,
+                           _("Restore On-Canvas Editor Position"), NULL);
+
+  g_signal_connect (editor->restore_position_button, "clicked",
+                    G_CALLBACK (gimp_text_style_editor_restore_position_callback),
+                    editor);
+
+  gtk_box_pack_end (GTK_BOX (editor->upper_hbox), editor->restore_position_button,
+                    FALSE, FALSE, 0);
+
   /*  lower row  */
 
   editor->lower_hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 2);
-  gtk_box_pack_start (GTK_BOX (editor), editor->lower_hbox, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (content_vbox), editor->lower_hbox, FALSE, FALSE, 0);
   gtk_widget_show (editor->lower_hbox);
 
   editor->clear_button = gtk_button_new ();
@@ -621,6 +699,16 @@ gimp_text_style_editor_list_tags (GimpTextStyleEditor  *editor,
   *remove_tags = g_list_reverse (*remove_tags);
 
   return g_list_reverse (tags);
+}
+
+void
+gimp_text_style_show_restore_position_button (GimpTextStyleEditor *editor,
+                                              gboolean             show)
+{
+  if (show)
+    gtk_widget_show (editor->restore_position_button);
+  else
+    gtk_widget_hide (editor->restore_position_button);
 }
 
 
@@ -1328,4 +1416,48 @@ gimp_text_style_editor_update_idle (GimpTextStyleEditor *editor)
     }
 
   return FALSE;
+}
+
+static gboolean
+gimp_text_style_editor_notify_enter_dnd_handler (GtkWidget       *widget,
+                                                 GdkEventCrossing event,
+                                                 gpointer         user_data)
+{
+  GdkWindow *window = gtk_widget_get_window (widget);
+
+  if (window)
+    {
+      GdkCursor *cursor = gdk_cursor_new_for_display (gtk_widget_get_display (widget),
+                                                      GDK_FLEUR);
+
+      gdk_window_set_cursor (window, cursor);
+
+      if (cursor)
+        g_object_unref (cursor);
+    }
+
+  return FALSE;
+}
+
+static gboolean
+gimp_text_style_editor_notify_leave_dnd_handler (GtkWidget       *widget,
+                                                 GdkEventCrossing event,
+                                                 gpointer         user_data)
+{
+  GdkWindow *window = gtk_widget_get_window (widget);
+
+  if (window)
+    gdk_window_set_cursor (window, NULL);
+
+  return FALSE;
+}
+
+static void
+gimp_text_style_editor_restore_position_callback (GtkWidget           *button,
+                                                  GimpTextStyleEditor *editor)
+{
+  GimpTool     *tool      = tool_manager_get_active (editor->gimp);
+  GimpTextTool *text_tool = GIMP_TEXT_TOOL (tool);
+
+  gimp_text_tool_restore_on_canvas_editor_position (text_tool);
 }

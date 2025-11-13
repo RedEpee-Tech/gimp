@@ -38,11 +38,13 @@
 #include "menus/menus.h"
 
 #include "text/gimptext.h"
+#include "text/gimptextlayer.h"
 #include "text/gimptextlayout.h"
 
 #include "widgets/gimpdialogfactory.h"
 #include "widgets/gimpdockcontainer.h"
 #include "widgets/gimpoverlaybox.h"
+#include "widgets/gimpoverlaychild.h"
 #include "widgets/gimpoverlayframe.h"
 #include "widgets/gimptextbuffer.h"
 #include "widgets/gimptexteditor.h"
@@ -128,6 +130,20 @@ static void   gimp_text_tool_fix_position         (GimpTextTool    *text_tool,
 static void   gimp_text_tool_convert_gdkkeyevent  (GimpTextTool    *text_tool,
                                                    GdkEventKey     *kevent);
 
+static gboolean gimp_text_tool_style_overlay_button_press
+                                                  (GtkWidget       *widget,
+                                                   GdkEventButton  *event,
+                                                   gpointer         user_data);
+static gboolean gimp_text_tool_style_overlay_button_release
+                                                  (GtkWidget       *widget,
+                                                   GdkEventButton  *event,
+                                                   gpointer         user_data);
+static gboolean gimp_text_tool_style_overlay_button_motion
+                                                  (GtkWidget       *widget,
+                                                   GdkEventMotion  *event,
+                                                   gpointer         user_data);
+
+#define DEFAULT_DRAG_OFFSET 25
 
 /*  public functions  */
 
@@ -199,10 +215,11 @@ gimp_text_tool_editor_start (GimpTextTool *text_tool)
 
   if (! text_tool->style_overlay)
     {
-      Gimp          *gimp = GIMP_CONTEXT (options)->gimp;
-      GimpContainer *fonts;
-      gdouble        xres = 1.0;
-      gdouble        yres = 1.0;
+      Gimp                *gimp   = GIMP_CONTEXT (options)->gimp;
+      GimpTextStyleEditor *editor;
+      GimpContainer       *fonts;
+      gdouble              xres   = 1.0;
+      gdouble              yres   = 1.0;
 
       text_tool->style_overlay = gimp_overlay_frame_new ();
       gtk_container_set_border_width (GTK_CONTAINER (text_tool->style_overlay),
@@ -226,6 +243,20 @@ gimp_text_tool_editor_start (GimpTextTool *text_tool)
                                                             xres, yres);
       gtk_container_add (GTK_CONTAINER (text_tool->style_overlay),
                          text_tool->style_editor);
+
+      editor = GIMP_TEXT_STYLE_EDITOR (text_tool->style_editor);
+
+      g_signal_connect_object (editor->dnd_handle, "button-press-event",
+                               G_CALLBACK (gimp_text_tool_style_overlay_button_press),
+                               text_tool, 0);
+      g_signal_connect_object (editor->dnd_handle, "button-release-event",
+                               G_CALLBACK (gimp_text_tool_style_overlay_button_release),
+                               text_tool, 0);
+      g_signal_connect_object (editor->dnd_handle, "motion-notify-event",
+                               G_CALLBACK (gimp_text_tool_style_overlay_button_motion),
+                               text_tool, 0);
+
+      text_tool->overlay_dragging = FALSE;
 
       if (options->show_on_canvas)
         gtk_widget_show (text_tool->style_editor);
@@ -254,10 +285,41 @@ gimp_text_tool_editor_position (GimpTextTool *text_tool)
                     "y1", &y,
                     NULL);
 
-      gimp_display_shell_move_overlay (shell,
-                                       text_tool->style_overlay,
-                                       x, y,
-                                       GIMP_HANDLE_ANCHOR_SOUTH_WEST, 4, 12);
+      if (text_tool->layer &&
+          gimp_text_layer_get_style_overlay_position (text_tool->layer, &x, &y))
+        {
+          gdouble offset_x, offset_y;
+
+          gimp_text_layer_get_style_overlay_offset (text_tool->layer,
+                                                    &offset_x, &offset_y);
+          gimp_display_shell_move_overlay (shell,
+                                           text_tool->style_overlay,
+                                           x, y, -1,
+                                           offset_x + DEFAULT_DRAG_OFFSET,
+                                           offset_y + DEFAULT_DRAG_OFFSET);
+
+          gimp_text_style_show_restore_position_button (GIMP_TEXT_STYLE_EDITOR (text_tool->style_editor),
+                                                        TRUE);
+        }
+      else
+        {
+          GimpOverlayChild *child_overlay;
+
+          /*
+           * Set 'relative_to_shell' to FALSE to allow the overlay to be positioned
+           * independently from the shell. This enables the overlay to be moved freely
+           * and later restored to its original position on screen.
+           */
+          child_overlay = gimp_overlay_child_find (GIMP_OVERLAY_BOX (shell->canvas),
+                                                   text_tool->style_overlay);
+          gimp_overlay_child_set_relative_to_shell (child_overlay, FALSE);
+
+          gimp_display_shell_move_overlay (shell,
+                                           text_tool->style_overlay,
+                                           x, y, GIMP_HANDLE_ANCHOR_SOUTH_WEST,
+                                           4, 12);
+        }
+
 
       if (text_tool->image)
         {
@@ -540,6 +602,16 @@ gimp_text_tool_editor_key_press (GimpTextTool *text_tool,
     case GDK_KEY_U:
       if ((kevent->state & gimp_get_all_modifiers_mask ()) == primary_mask)
         gimp_text_tool_toggle_tag (text_tool, text_tool->buffer->underline_tag);
+      break;
+
+    /* This key binding (Ctrl-Shift-V) is dedicated for the action `text-tool-
+     * paste-unformatted`, which could not be connected to signal source since
+     * GTKTextView did not provide us a built-in one.
+     */
+    case GDK_KEY_v:
+    case GDK_KEY_V:
+      if ((kevent->state & gimp_get_all_modifiers_mask()) == (primary_mask | GDK_SHIFT_MASK))
+        gimp_text_tool_paste_clipboard_unformatted (text_tool);
       break;
 
     default:
@@ -1914,4 +1986,150 @@ gimp_text_tool_convert_gdkkeyevent (GimpTextTool *text_tool,
 #endif
       break;
     }
+}
+
+static gboolean
+gimp_text_tool_style_overlay_button_press (GtkWidget      *widget,
+                                           GdkEventButton *event,
+                                           gpointer        user_data)
+{
+  GimpTextTool        *text_tool     = GIMP_TEXT_TOOL (user_data);
+  GtkWidget           *event_widget  = gtk_get_event_widget ((GdkEvent*) event);
+  GimpTextStyleEditor *editor        = GIMP_TEXT_STYLE_EDITOR (text_tool->style_editor);
+  GimpTool            *tool          = GIMP_TOOL (text_tool);
+  GimpDisplayShell    *shell         = gimp_display_get_shell (tool->display);
+  GimpOverlayChild    *child_overlay = NULL;
+
+  if (event_widget != GTK_WIDGET (editor->dnd_handle) &&
+      gtk_widget_is_ancestor (event_widget, GTK_WIDGET (text_tool->style_editor)))
+    {
+      return FALSE;
+    }
+
+  /* Prevent moving the overlay
+   * if no text layer has been created
+   */
+  if (! text_tool->layer)
+    return FALSE;
+
+  if (gtk_widget_get_window (GTK_WIDGET (text_tool->style_overlay)))
+    {
+      GdkCursor *cursor = gdk_cursor_new_for_display (gtk_widget_get_display (GTK_WIDGET (text_tool->style_overlay)),
+                                                      GDK_FLEUR);
+      if (cursor)
+        {
+          gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (text_tool->style_overlay)),
+                                 cursor);
+          g_object_unref (cursor);
+        }
+    }
+
+  text_tool->overlay_dragging = TRUE;
+  gimp_text_layer_set_style_overlay_offset (text_tool->layer, event->x, event->y);
+
+  child_overlay = gimp_overlay_child_find (GIMP_OVERLAY_BOX (shell->canvas),
+                                           text_tool->style_overlay);
+  gimp_overlay_child_set_relative_to_shell (child_overlay, FALSE);
+
+  return TRUE;
+}
+
+static gboolean
+gimp_text_tool_style_overlay_button_release (GtkWidget      *widget,
+                                             GdkEventButton *event,
+                                             gpointer        user_data)
+{
+  GimpTextTool        *text_tool     = GIMP_TEXT_TOOL (user_data);
+  GtkWidget           *event_widget  = gtk_get_event_widget ((GdkEvent*) event);
+  GimpTextStyleEditor *editor        = GIMP_TEXT_STYLE_EDITOR (text_tool->style_editor);
+  GimpTool            *tool          = GIMP_TOOL (text_tool);
+  GimpDisplayShell    *shell         = gimp_display_get_shell (tool->display);
+  GimpOverlayChild    *child_overlay = NULL;
+
+  if (event_widget != GTK_WIDGET (editor->dnd_handle) &&
+      gtk_widget_is_ancestor (event_widget, GTK_WIDGET (text_tool->style_editor)))
+    {
+      return FALSE;
+    }
+
+  text_tool->overlay_dragging = FALSE;
+
+  child_overlay = gimp_overlay_child_find (GIMP_OVERLAY_BOX (shell->canvas),
+                                           text_tool->style_overlay);
+  gimp_overlay_child_set_relative_to_shell (child_overlay, TRUE);
+
+  if (gtk_widget_get_window (GTK_WIDGET (text_tool->style_overlay)))
+    gdk_window_set_cursor (gtk_widget_get_window (GTK_WIDGET (text_tool->style_overlay)), NULL);
+
+  return TRUE;
+}
+
+static gboolean
+gimp_text_tool_style_overlay_button_motion (GtkWidget      *widget,
+                                            GdkEventMotion *event,
+                                            gpointer        user_data)
+{
+  GimpTextTool *text_tool = GIMP_TEXT_TOOL (user_data);
+
+  if (text_tool->overlay_dragging)
+    {
+      GimpTool            *tool  = GIMP_TOOL (text_tool);
+      GimpDisplayShell    *shell = gimp_display_get_shell (tool->display);
+      GimpTextStyleEditor *style_editor;
+      gdouble              llimit, rlimit, ulimit, blimit;
+      gdouble              tlx, tly, brx, bry;
+      gdouble              x, y;
+      gdouble              x_off, y_off;
+
+      gimp_text_layer_get_style_overlay_offset (text_tool->layer, &x_off, &y_off);
+
+      gdk_window_get_device_position_double (gtk_widget_get_window (GTK_WIDGET (shell)),
+                                             event->device,
+                                             &x, &y, NULL);
+
+      gimp_display_shell_untransform_xy_f (shell,
+                                           x, y,
+                                           &x, &y);
+
+      gimp_ruler_get_range ((GimpRuler *) shell->hrule,
+                            &llimit, &rlimit, NULL);
+      gimp_ruler_get_range ((GimpRuler *) shell->vrule,
+                            &ulimit, &blimit, NULL);
+
+      gimp_display_shell_get_overlay_corners (shell, text_tool->style_overlay,
+                                              x, y,
+                                              &tlx, &tly,
+                                              &brx, &bry);
+
+      /* If the overlay is being dragged, we need to check if it is still
+       * within the image bounds. If it is not, we adjust the coordinates.
+       * This is to prevent the overlay from being dragged outside the image
+       * bounds, which would cause it to be lost.
+       */
+      if (gimp_text_layer_is_style_overlay_positioned (text_tool->layer))
+        {
+          if (tlx < llimit)
+            x += (llimit - tlx);
+          if (tly < ulimit)
+            y += (ulimit - tly);
+          if (brx > rlimit)
+            x -= (brx - rlimit);
+          if (bry > blimit)
+            y -= (bry - blimit);
+        }
+
+      gimp_display_shell_move_overlay (shell,
+                                       text_tool->style_overlay,
+                                       x, y, -1,
+                                       x_off + DEFAULT_DRAG_OFFSET,
+                                       y_off + DEFAULT_DRAG_OFFSET);
+
+      gimp_text_layer_set_style_overlay_position (text_tool->layer, TRUE,
+                                                  x, y);
+
+      style_editor = GIMP_TEXT_STYLE_EDITOR (text_tool->style_editor);
+      gimp_text_style_show_restore_position_button (style_editor, TRUE);
+    }
+
+  return TRUE;
 }

@@ -273,6 +273,7 @@ gimp_image_merge_down (GimpImage      *image,
                        GimpContext    *context,
                        GimpMergeType   merge_type,
                        GimpProgress   *progress,
+                       GimpItem      **blink_item,
                        GError        **error)
 {
   GList       *merged_layers = NULL;
@@ -299,6 +300,18 @@ gimp_image_merge_down (GimpImage      *image,
         {
           g_set_error_literal (error, GIMP_ERROR, GIMP_FAILED,
                                _("Cannot merge down a floating selection."));
+          if (blink_item)
+            *blink_item = GIMP_ITEM (list->data);
+          g_list_free (layers);
+          g_list_free_full (merge_lists, (GDestroyNotify) g_slist_free);
+          return NULL;
+        }
+      if (gimp_layer_get_mode (list->data) == GIMP_LAYER_MODE_PASS_THROUGH)
+        {
+          g_set_error_literal (error, GIMP_ERROR, GIMP_FAILED,
+                               _("Cannot merge down a pass through layer group."));
+          if (blink_item)
+            *blink_item = GIMP_ITEM (list->data);
           g_list_free (layers);
           g_list_free_full (merge_lists, (GDestroyNotify) g_slist_free);
           return NULL;
@@ -308,6 +321,8 @@ gimp_image_merge_down (GimpImage      *image,
         {
           g_set_error_literal (error, GIMP_ERROR, GIMP_FAILED,
                                _("Cannot merge down an invisible layer."));
+          if (blink_item)
+            *blink_item = GIMP_ITEM (list->data);
           g_list_free (layers);
           g_list_free_full (merge_lists, (GDestroyNotify) g_slist_free);
           return NULL;
@@ -334,6 +349,8 @@ gimp_image_merge_down (GimpImage      *image,
                 {
                   g_set_error_literal (error, GIMP_ERROR, GIMP_FAILED,
                                        _("Cannot merge down to a layer group."));
+                  if (blink_item)
+                    *blink_item = GIMP_ITEM (layer);
                   g_list_free (layers);
                   g_list_free_full (merge_lists, (GDestroyNotify) g_slist_free);
                   return NULL;
@@ -343,6 +360,8 @@ gimp_image_merge_down (GimpImage      *image,
                 {
                   g_set_error_literal (error, GIMP_ERROR, GIMP_FAILED,
                                        _("The layer to merge down to is locked."));
+                  if (blink_item)
+                    *blink_item = GIMP_ITEM (layer);
                   g_list_free (layers);
                   g_list_free_full (merge_lists, (GDestroyNotify) g_slist_free);
                   return NULL;
@@ -470,6 +489,11 @@ gimp_image_merge_group_layer (GimpImage      *image,
    */
    if (pass_through_buffer)
     {
+      /* The group duplicate may be smaller than actual render in case
+       * of pass-through groups.
+       */
+      gimp_item_set_size (GIMP_ITEM (layer), rect.width, rect.height);
+
       if (rect.x != 0 || rect.y != 0)
         {
           GeglBuffer *buffer;
@@ -722,6 +746,7 @@ gimp_image_merge_layers (GimpImage     *image,
   for (layers = trimmed_list; layers; layers = g_slist_next (layers))
     {
       gint off_x, off_y;
+      gint width, height;
 
       layer = layers->data;
 
@@ -729,7 +754,23 @@ gimp_image_merge_layers (GimpImage     *image,
       gimp_drawable_merge_filters (GIMP_DRAWABLE (layer));
       gimp_drawable_clear_filters (GIMP_DRAWABLE (layer));
 
-      gimp_item_get_offset (GIMP_ITEM (layer), &off_x, &off_y);
+      if (gimp_layer_get_mode (layer) == GIMP_LAYER_MODE_PASS_THROUGH)
+        {
+          GeglNode      *mode_node = gimp_drawable_get_mode_node (GIMP_DRAWABLE (layer));
+          GeglRectangle  rect;
+
+          rect   = gegl_node_get_bounding_box (mode_node);
+          off_x  = rect.x;
+          off_y  = rect.y;
+          width  = rect.width;
+          height = rect.height;
+        }
+      else
+        {
+          gimp_item_get_offset (GIMP_ITEM (layer), &off_x, &off_y);
+          width  = gimp_item_get_width (GIMP_ITEM (layer));
+          height = gimp_item_get_height (GIMP_ITEM (layer));
+        }
 
       switch (merge_type)
         {
@@ -739,8 +780,8 @@ gimp_image_merge_layers (GimpImage     *image,
             {
               x1 = off_x;
               y1 = off_y;
-              x2 = off_x + gimp_item_get_width  (GIMP_ITEM (layer));
-              y2 = off_y + gimp_item_get_height (GIMP_ITEM (layer));
+              x2 = off_x + width;
+              y2 = off_y + height;
             }
           else
             {
@@ -748,10 +789,10 @@ gimp_image_merge_layers (GimpImage     *image,
                 x1 = off_x;
               if (off_y < y1)
                 y1 = off_y;
-              if ((off_x + gimp_item_get_width (GIMP_ITEM (layer))) > x2)
-                x2 = (off_x + gimp_item_get_width (GIMP_ITEM (layer)));
-              if ((off_y + gimp_item_get_height (GIMP_ITEM (layer))) > y2)
-                y2 = (off_y + gimp_item_get_height (GIMP_ITEM (layer)));
+              if ((off_x + width) > x2)
+                x2 = (off_x + width);
+              if ((off_y + height) > y2)
+                y2 = (off_y + height);
             }
 
           if (merge_type == GIMP_CLIP_TO_IMAGE)
@@ -768,8 +809,8 @@ gimp_image_merge_layers (GimpImage     *image,
             {
               x1 = off_x;
               y1 = off_y;
-              x2 = off_x + gimp_item_get_width  (GIMP_ITEM (layer));
-              y2 = off_y + gimp_item_get_height (GIMP_ITEM (layer));
+              x2 = off_x + width;
+              y2 = off_y + height;
             }
           break;
 

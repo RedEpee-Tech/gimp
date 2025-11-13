@@ -81,7 +81,35 @@
   </provides>
 
   <releases>
+    <release version="3.2.0~rc1" date="TODO" type="development">
+      <url type="details">https://www.gimp.org/release/3.2.0-RC1/</url>
+      <description>
+        <p>
+        Introducing the first release candidate of what will eventually become GIMP 3.2!
+        Since GIMP 3.1.4 development version, here is what happened:
+        </p>
+        <ul>
+          <li>Text, link or vector layer must now be explicitly rasterized for direct pixel edits</li>
+          <li demo="toolbox:path,
+                    tool-options">
+          Path tool interaction have been reworked
+          </li>
+          <li demo="toolbox:text">
+          New "Paste unformatted text" action in text tool
+          </li>
+          <li>Dragging a file to the image tab bar opens the file as a new image</li>
+          <li>New "Edit mask immediately" checkbox in "Edit Layer Mask" dialog</li>
+          <li>Filters on a pass-through group layer are no longer limited to its children's bounding box</li>
+          <li>Import of hgt.zip format added</li>
+          <li>Export of SVG format added</li>
+          <li>PDF format export will export vector layer as paths</li>
+          <li>Many new API for text, vector and link layers for plug-in developers</li>
+          <li>Improved support of macOS application menu and quit action</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.1.4" date="2025-08-31" type="development">
+      <url type="details">https://www.gimp.org/release/3.1.4/</url>
       <description>
         <p>
         Our second development release finally contains the initial implementation of the two new types of
@@ -112,6 +140,7 @@
       </description>
     </release>
     <release version="3.1.2" date="2025-06-22" type="development">
+      <url type="details">https://www.gimp.org/release/3.1.2/</url>
       <description>
         <p>
         GIMP 3.1.2 is the first development release leading to the next stable 3.2 series.
@@ -155,7 +184,26 @@
         </ul>
       </description>
     </release>
+
+    <release version="3.0.6" date="2025-10-04">
+      <url type="details">https://www.gimp.org/release/3.0.6/</url>
+      <description>
+        <p>
+        This micro release in the 3.0 series fixes some major bugs, assorted with various usability improvements.
+        </p>
+        <ul>
+          <li demo="brush-list,brush-list:viewables-follow-theme">
+          New toggle in Brushes and Fonts dialogs to render their previews using theme colors
+          </li>
+          <li>The Print plug-in now pops a second dialog for fine-tuning prints in sandboxed environments (e.g. Flatpak or Snap)</li>
+          <li>A bug in Windows prevented GIMP to work when the system was set to specific locales</li>
+          <li>Various usability issues have been handled</li>
+          <li>Reported instabilities and vulnerabilities were fixed</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.0.4" date="2025-05-17">
+      <url type="details">https://www.gimp.org/release/3.0.4/</url>
       <description>
         <p>
         This second micro release in the 3.0 series fixes various bugs and improves usability in several parts of the interface:
@@ -179,6 +227,7 @@
       </description>
     </release>
     <release version="3.0.2" date="2025-03-23">
+      <url type="details">https://www.gimp.org/release/3.0.2/</url>
       <description>
         <p>
         As could be expected from a major release, a few critical bugs slipped through our testing!
@@ -187,6 +236,7 @@
       </description>
     </release>
     <release version="3.0.0" date="2025-03-16">
+      <url type="details">https://www.gimp.org/release/3.0.0/</url>
       <description>
         <p>
         Our initial release for the next generation in image manipulation!

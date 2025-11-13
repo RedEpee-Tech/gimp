@@ -239,8 +239,8 @@ void             gimp_context_display_changed     (GimpContext     *context);
 GimpToolInfo   * gimp_context_get_tool            (GimpContext     *context);
 void             gimp_context_set_tool            (GimpContext     *context,
                                                    GimpToolInfo    *tool_info);
-void             gimp_context_tool_changed        (GimpContext     *context);
 
+void             gimp_context_tool_changed        (GimpContext     *context);
 
 /*  paint info  */
 GimpPaintInfo  * gimp_context_get_paint_info      (GimpContext     *context);

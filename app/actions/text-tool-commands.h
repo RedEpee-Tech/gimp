@@ -27,6 +27,10 @@ void   text_tool_copy_cmd_callback            (GimpAction *action,
 void   text_tool_paste_cmd_callback           (GimpAction *action,
                                                GVariant   *value,
                                                gpointer    data);
+void   text_tool_paste_unformatted_cmd_callback
+                                              (GimpAction *action,
+                                               GVariant   *value,
+                                               gpointer    data);
 void   text_tool_toggle_bold_cmd_callback     (GimpAction *action,
                                                GVariant   *value,
                                                gpointer    data);
@@ -53,5 +57,9 @@ void   text_tool_text_along_path_cmd_callback (GimpAction *action,
                                                GVariant   *value,
                                                gpointer    data);
 void   text_tool_direction_cmd_callback       (GimpAction *action,
+                                               GVariant   *value,
+                                               gpointer    data);
+void   text_tool_restore_on_canvas_editor_position_cmd_callback
+                                              (GimpAction *action,
                                                GVariant   *value,
                                                gpointer    data);

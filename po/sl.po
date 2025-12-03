@@ -10,8 +10,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: GIMP master\n"
 "Report-Msgid-Bugs-To: https://gitlab.gnome.org/GNOME/gimp/issues\n"
-"POT-Creation-Date: 2025-11-11 03:17+0000\n"
-"PO-Revision-Date: 2025-11-11 08:28+0100\n"
+"POT-Creation-Date: 2025-11-20 21:03+0000\n"
+"PO-Revision-Date: 2025-11-21 10:42+0100\n"
 "Last-Translator: Martin Srebotnjak <miles@filmsi.net>\n"
 "Language-Team: Martin Srebotnjak <miles@filmsi.net>\n"
 "Language: sl\n"
@@ -32,32 +32,32 @@ msgstr "Ekipa GIMP"
 msgid "GNU Image Manipulation Program"
 msgstr "GIMP – program GNU za obdelavo slik"
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:17 desktop/gimp.desktop.in.in:6
-msgid "Create images and edit photographs"
-msgstr "Ustvari slike in uredi fotografije"
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:17
+msgid "High-end image creation and manipulation"
+msgstr "Vrhunsko ustvarjanje in obdelovanje slik"
 
 #: desktop/org.gimp.GIMP.appdata.xml.in.in:19
 msgid ""
-"GIMP is an acronym for GNU Image Manipulation Program. It is a freely "
-"distributed program for such tasks as photo retouching, image composition "
-"and image authoring."
+"GIMP is an acronym for GNU Image Manipulation Program. It is Community-"
+"driven Free Software for high-end image creation and manipulation."
 msgstr ""
 "GIMP je okrajšava polnega angleškega imena, GNU Image Manipulation Program. "
-"Je prosto dostopen program, namenjen retuši fotografij, tvorbi in avtorstvu "
-"slik."
+"To je prosto dostopen program, ki ga poganja skupnost, namenjen vrhunski "
+"retuši fotografij, tvorbi in avtorstvu slik."
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:24
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:23
 msgid ""
-"It has many capabilities. It can be used as a simple paint program, an "
-"expert quality photo retouching program, an online batch processing system, "
-"a mass production image renderer, an image format converter, etc."
+"It has many capabilities. It can be used as a paint program, an expert "
+"quality photo retouching program, image composition, an online batch "
+"processing system, a mass production image renderer, an image format "
+"converter, etc."
 msgstr ""
-"Ima veliko zmogljivih funkcij. Uporabite ga lahko kot enostavni program za "
-"risanje, kot strokovno kakovosten program za retušo fotografij, spletni "
-"sistem za paketno obdelavo, masovni upodobljevalnik slik, pretvornik med "
+"Ima veliko zmogljivih funkcij. Uporabite ga lahko kot program za risanje, "
+"kot strokovno kakovosten program za retušo fotografij, sestavo slik, spletni "
+"sistem za paketno obdelavo, masovni izrisovalnik slik, pretvornik med "
 "slikovnimi zapisi itn."
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:30
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:29
 msgid ""
 "GIMP is expandable and extensible. It is designed to be augmented with plug-"
 "ins and extensions to do just about anything. The advanced scripting "
@@ -71,7 +71,7 @@ msgstr ""
 "procedur obdelave slik. GIMP je na voljo za sisteme Linux, Microsoft Windows "
 "in macOS."
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:48
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:47
 msgid ""
 "Scene 4 cut 15 of \"ZeMarmot\" being edited in GIMP. Illustration by Aryeom "
 "(CC by-sa 4.0 International)"
@@ -79,7 +79,7 @@ msgstr ""
 "Prizor 4, rez 15: \"ZeMarmot\", ki je bil urejen v GIMP-u. Ilustracija "
 "Aryeom (CC by-sa 4.0 International)"
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:52
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:51
 msgid ""
 "Gull on beach photograph being edited in GIMP. Photo by Iana (CC by-sa 4.0 "
 "International)"
@@ -87,20 +87,24 @@ msgstr ""
 "Fotografija galeba na plaži, urejeno v GIMP-u. Fotografija Iana (CC by-sa "
 "4.0 International)"
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:56
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:55
 msgid ""
 "Portrait of Sofiia being edited in GIMP. Photo by Sofia (CC by-sa 4.0 "
 "International)"
 msgstr ""
 "Portret Sofiie, urejen v GIMP-u. Foto: Sofia (CC by-sa 4.0 International)"
 
-#: desktop/org.gimp.GIMP.appdata.xml.in.in:60
+#: desktop/org.gimp.GIMP.appdata.xml.in.in:59
 msgid "Scanned engraving being edited in GIMP. Artwork by Liam (CC0)"
 msgstr "Skenirana gravura, urejena v GIMP-u. Umetniško delo Liama (CC0)"
 
 #: desktop/gimp.desktop.in.in:5
 msgid "Image Editor"
 msgstr "Urejevalnik slik"
+
+#: desktop/gimp.desktop.in.in:6
+msgid "Create images and edit photographs"
+msgstr "Ustvari slike in uredi fotografije"
 
 #. TRANSLATORS: Search terms to find this application.
 #. 1. Do NOT translate or localize the semicolons!
@@ -389,7 +393,7 @@ msgid "Buffers"
 msgstr "Medpomnilniki"
 
 #: app/actions/actions.c:123 app/dialogs/dialogs.c:380
-#: app/propgui/gimppropgui-newsprint.c:160
+#: app/propgui/gimppropgui-newsprint.c:160 app/widgets/gimpitemchooser.c:294
 #: app/widgets/gimppickablechooser.c:292
 msgid "Channels"
 msgstr "Kanali"
@@ -498,12 +502,14 @@ msgid "Image"
 msgstr "Slika"
 
 #: app/actions/actions.c:195 app/dialogs/dialogs.c:338
+#: app/widgets/gimpimagechooser.c:185 app/widgets/gimpitemchooser.c:213
 #: app/widgets/gimppickablechooser.c:211
 msgid "Images"
 msgstr "Slike"
 
 #: app/actions/actions.c:198 app/dialogs/dialogs.c:376
-#: app/dialogs/resize-dialog.c:171 app/widgets/gimppickablechooser.c:267
+#: app/dialogs/resize-dialog.c:171 app/widgets/gimpitemchooser.c:269
+#: app/widgets/gimppickablechooser.c:267
 msgid "Layers"
 msgstr "Plasti"
 
@@ -574,7 +580,7 @@ msgid "Tools"
 msgstr "Orodja"
 
 #: app/actions/actions.c:243 app/dialogs/dialogs.c:384
-#: app/tools/gimppathtool.c:188
+#: app/tools/gimppathtool.c:188 app/widgets/gimpitemchooser.c:319
 msgid "Paths"
 msgstr "Poti"
 
@@ -2472,7 +2478,7 @@ msgstr "240 s"
 
 #: app/actions/dashboard-commands.c:121 app/actions/documents-commands.c:263
 #: app/actions/edit-commands.c:170 app/actions/error-console-commands.c:101
-#: app/actions/file-commands.c:472 app/actions/gradient-editor-commands.c:410
+#: app/actions/file-commands.c:463 app/actions/gradient-editor-commands.c:410
 #: app/actions/gradient-editor-commands.c:521
 #: app/actions/gradients-commands.c:80 app/actions/plug-in-commands.c:187
 #: app/actions/templates-commands.c:248 app/actions/text-editor-commands.c:65
@@ -2595,7 +2601,7 @@ msgid "Untitled"
 msgstr "Neimenovano"
 
 #: app/actions/data-commands.c:224 app/actions/documents-commands.c:210
-#: app/actions/file-commands.c:578
+#: app/actions/file-commands.c:569
 #, c-format
 msgid "Can't show file in file manager: %s"
 msgstr "Datoteke ni mogoče pokazati v upravljalniku datotek: %s"
@@ -4230,7 +4236,7 @@ msgctxt "file-action"
 msgid "Quit the GNU Image Manipulation Program"
 msgstr "Zapri program za obdelavo slik GIMP"
 
-#: app/actions/file-actions.c:137 app/actions/file-actions.c:308
+#: app/actions/file-actions.c:137 app/actions/file-actions.c:305
 msgctxt "file-action"
 msgid "_Save"
 msgstr "_Shrani"
@@ -4274,7 +4280,7 @@ msgctxt "file-action"
 msgid "Save this image and close its window"
 msgstr "Shrani to sliko in zapri njeno okno"
 
-#: app/actions/file-actions.c:163 app/actions/file-actions.c:353
+#: app/actions/file-actions.c:163 app/actions/file-actions.c:350
 msgctxt "file-action"
 msgid "E_xport..."
 msgstr "I_zvozi ..."
@@ -4304,17 +4310,17 @@ msgctxt "file-action"
 msgid "Export the image to various file formats such as PNG or JPEG"
 msgstr "Izvozi sliko v različne vrste datotek, kot sta PNG in JPEG"
 
-#: app/actions/file-actions.c:314
+#: app/actions/file-actions.c:311
 msgctxt "file-action"
 msgid "_Save..."
 msgstr "_Shrani ..."
 
-#: app/actions/file-actions.c:320
+#: app/actions/file-actions.c:317
 #, c-format
 msgid "Export to %s"
 msgstr "Izvozi v %s"
 
-#: app/actions/file-actions.c:336
+#: app/actions/file-actions.c:333
 #, c-format
 msgid "Over_write %s"
 msgstr "Prepi_ši %s"
@@ -4322,12 +4328,12 @@ msgstr "Prepi_ši %s"
 #. TRANSLATORS: the %s will be replaced by the file name of a
 #. * recently opened image.
 #.
-#: app/actions/file-actions.c:408
+#: app/actions/file-actions.c:403
 #, c-format
 msgid "Open \"%s\""
 msgstr "Odpri »%s«"
 
-#: app/actions/file-commands.c:121 app/actions/file-commands.c:602
+#: app/actions/file-commands.c:121 app/actions/file-commands.c:593
 #: app/widgets/gimpopendialog.c:84
 msgid "Open Image"
 msgstr "Odpri sliko"
@@ -4340,45 +4346,45 @@ msgstr "Odpri sliko kot plasti"
 msgid "Open Image as Link Layer"
 msgstr "Odpri sliko kot povezano plast"
 
-#: app/actions/file-commands.c:330
+#: app/actions/file-commands.c:321
 msgid "No changes need to be saved"
 msgstr "Nobenih sprememb ni potrebno shraniti"
 
-#: app/actions/file-commands.c:337 app/actions/file-commands.c:814
+#: app/actions/file-commands.c:328 app/actions/file-commands.c:805
 #: app/widgets/gimpsavedialog.c:139
 msgid "Save Image"
 msgstr "Shrani sliko"
 
-#: app/actions/file-commands.c:343
+#: app/actions/file-commands.c:334
 msgid "Save a Copy of the Image"
 msgstr "Shrani kopijo slike"
 
-#: app/actions/file-commands.c:421
+#: app/actions/file-commands.c:412
 msgid "Create New Template"
 msgstr "Ustvari novo predlogo"
 
-#: app/actions/file-commands.c:425
+#: app/actions/file-commands.c:416
 msgid "Enter a name for this template"
 msgstr "Vnesite ime za predlogo"
 
-#: app/actions/file-commands.c:455
+#: app/actions/file-commands.c:446
 msgid "Revert failed. No file name associated with this image."
 msgstr "Povrnitev ni uspela. Nobena datoteka ni povezana s to sliko."
 
-#: app/actions/file-commands.c:467
+#: app/actions/file-commands.c:458
 msgid "Revert Image"
 msgstr "Povrni sliko"
 
-#: app/actions/file-commands.c:473
+#: app/actions/file-commands.c:464
 msgid "_Revert"
 msgstr "Po_vrni"
 
-#: app/actions/file-commands.c:491
+#: app/actions/file-commands.c:482
 #, c-format
 msgid "Revert '%s' to '%s'?"
 msgstr "Želite povrniti »%s« v »%s«?"
 
-#: app/actions/file-commands.c:496
+#: app/actions/file-commands.c:487
 msgid ""
 "By reverting the image to the state saved on disk, you will lose all "
 "changes, including all undo information."
@@ -4386,11 +4392,11 @@ msgstr ""
 "S povrnitvijo slike v zadnje shranjeno stanje boste izgubili vse spremembe "
 "in podatke za razveljavitve."
 
-#: app/actions/file-commands.c:836
+#: app/actions/file-commands.c:827
 msgid "(Unnamed Template)"
 msgstr "(neimenovana predloga)"
 
-#: app/actions/file-commands.c:883
+#: app/actions/file-commands.c:874
 #, c-format
 msgid ""
 "Reverting to '%s' failed:\n"
@@ -7010,8 +7016,7 @@ msgstr "Lastnosti plasti"
 msgid "Edit Layer Attributes"
 msgstr "Uredi lastnosti plasti"
 
-#: app/actions/layers-commands.c:415 app/widgets/gimpdrawabletreeview.c:649
-#: app/widgets/gimplayertreeview.c:915
+#: app/actions/layers-commands.c:415
 msgid "New Layer"
 msgid_plural "New Layers"
 msgstr[0] "Novih plasti"
@@ -13844,7 +13849,7 @@ msgid "Cannot rename effect masks."
 msgstr "Mask učinkov ni mogoče preimenovati."
 
 #: app/core/gimpdrawablefiltermask.c:195 app/core/gimplayer.c:735
-#: app/core/gimplayer.c:2049 app/core/gimplayermask.c:294
+#: app/core/gimplayer.c:2051 app/core/gimplayermask.c:294
 #, c-format
 msgid "%s mask"
 msgstr "Maska %s"
@@ -14631,7 +14636,7 @@ msgctxt "undo-type"
 msgid "Anchor Floating Selection"
 msgstr "Zasidraj plavajoči izbor"
 
-#: app/core/gimplayer-floating-selection.c:183 app/core/gimplayer.c:1079
+#: app/core/gimplayer-floating-selection.c:183 app/core/gimplayer.c:1081
 msgid ""
 "Cannot create a new layer from the floating selection because it belongs to "
 "a layer mask or channel."
@@ -14712,6 +14717,10 @@ msgid "Floating Mask"
 msgstr "Plavajoča maska"
 
 #: app/core/gimplayer.c:781
+msgid "Floating Channel"
+msgstr "Plavajoči kanal"
+
+#: app/core/gimplayer.c:783
 msgid "Floating Layer"
 msgstr "Plavajoča plast"
 
@@ -14719,7 +14728,7 @@ msgstr "Plavajoča plast"
 #. * either a "Floating Layer" or "Floating Mask" usually. The second will
 #. * be a layer name.
 #.
-#: app/core/gimplayer.c:786
+#: app/core/gimplayer.c:788
 #, c-format
 msgid ""
 "%s\n"
@@ -14728,73 +14737,73 @@ msgstr ""
 "%s\n"
 "(%s)"
 
-#: app/core/gimplayer.c:1940
+#: app/core/gimplayer.c:1942
 msgid "Unable to add a layer mask since the layer already has one."
 msgstr "Maske plasti ni mogoče dodati, ker jo plast že ima."
 
-#: app/core/gimplayer.c:1952
+#: app/core/gimplayer.c:1954
 msgid "Cannot add layer mask of different dimensions than specified layer."
 msgstr "Maske drugačnih mer, kot so mere plasti, ni mogoče dodati."
 
-#: app/core/gimplayer.c:1958
+#: app/core/gimplayer.c:1960
 msgctxt "undo-type"
 msgid "Add Layer Masks"
 msgstr "Dodaj maske plasti"
 
-#: app/core/gimplayer.c:2088
+#: app/core/gimplayer.c:2090
 msgctxt "undo-type"
 msgid "Transfer Alpha to Mask"
 msgstr "Prenesi alfo v masko"
 
-#: app/core/gimplayer.c:2252
+#: app/core/gimplayer.c:2254
 msgctxt "undo-type"
 msgid "Apply Layer Masks"
 msgstr "Uveljavi maske plasti"
 
-#: app/core/gimplayer.c:2253
+#: app/core/gimplayer.c:2255
 msgctxt "undo-type"
 msgid "Delete Layer Masks"
 msgstr "Izbriši maske plasti"
 
-#: app/core/gimplayer.c:2360
+#: app/core/gimplayer.c:2362
 msgctxt "undo-type"
 msgid "Enable Layer Masks"
 msgstr "Omogoči maske plasti"
 
-#: app/core/gimplayer.c:2361
+#: app/core/gimplayer.c:2363
 msgctxt "undo-type"
 msgid "Disable Layer Masks"
 msgstr "Onemogoči maske plasti"
 
-#: app/core/gimplayer.c:2442
+#: app/core/gimplayer.c:2444
 msgctxt "undo-type"
 msgid "Show Layer Masks"
 msgstr "Pokaži maske plasti"
 
-#: app/core/gimplayer.c:2521
+#: app/core/gimplayer.c:2523
 msgctxt "undo-type"
 msgid "Add Alpha Channel"
 msgstr "Dodaj kanal alfa"
 
-#: app/core/gimplayer.c:2551
+#: app/core/gimplayer.c:2553
 msgctxt "undo-type"
 msgid "Remove Alpha Channel"
 msgstr "Odstrani kanal alfa"
 
-#: app/core/gimplayer.c:2572
+#: app/core/gimplayer.c:2574
 msgctxt "undo-type"
 msgid "Layer to Image Size"
 msgstr "Plast na velikost slike"
 
-#: app/core/gimplayer.c:2755
+#: app/core/gimplayer.c:2757
 msgid "Set layer's blend space"
 msgstr "Nastavi prostor zlivanja plasti"
 
-#: app/core/gimplayer.c:2802
+#: app/core/gimplayer.c:2804
 msgid "Set layer's composite space"
 msgstr "Nastavi prostor skladanja plasti"
 
-#: app/core/gimplayer.c:2849
+#: app/core/gimplayer.c:2851
 msgid "Set layer's composite mode"
 msgstr "Nastavi način skladanja plasti"
 
@@ -19798,11 +19807,11 @@ msgstr ""
 "Podprte so samo poti datotek, značilne za platforme: »%s« ni mogoče odpreti "
 "kot povezave."
 
-#: app/file/file-open.c:985 app/file/file-save.c:132
+#: app/file/file-open.c:985 app/file/file-save.c:122
 msgid "Not a regular file"
 msgstr "Ni veljavna datoteka"
 
-#: app/file/file-open.c:994 app/file/file-save.c:141
+#: app/file/file-open.c:994 app/file/file-save.c:131
 msgid "Permission denied"
 msgstr "Ni ustreznih dovoljenj"
 
@@ -19834,15 +19843,11 @@ msgstr "Preneseno %s podatkov slike s strežnika"
 msgid "Uploaded %s of image data"
 msgstr "Preneseno %s podatkov slike na strežnik"
 
-#: app/file/file-save.c:105
-msgid "There is no active layer to save"
-msgstr "Ni aktivne plasti, da bi jo shranili."
-
-#: app/file/file-save.c:125
+#: app/file/file-save.c:115
 msgid "Failed to get file information"
 msgstr "Informacij o datoteki ni bilo mogoče pridobiti"
 
-#: app/file/file-save.c:297
+#: app/file/file-save.c:287
 #, c-format
 msgid "%s plug-in could not save image"
 msgstr "Z vtičnikom %s ni mogoče shraniti slike"
@@ -22068,7 +22073,7 @@ msgstr ""
 "Ločljivost slike je prekoračila meje, zato bo uporabljena privzeta "
 "ločljivost."
 
-#: app/pdb/image-select-cmds.c:305 app/tools/gimpfreeselecttool.c:105
+#: app/pdb/image-select-cmds.c:307 app/tools/gimpfreeselecttool.c:105
 msgid "Free Select"
 msgstr "Prosto izbiranje"
 
@@ -25547,15 +25552,15 @@ msgstr "Možnosti orisa"
 msgid "Outline Direction:"
 msgstr "Smer orisa:"
 
-#: app/tools/gimptextoptions.c:911
+#: app/tools/gimptextoptions.c:912
 msgid "Justify:"
 msgstr "Poravnaj:"
 
-#: app/tools/gimptextoptions.c:941
+#: app/tools/gimptextoptions.c:942
 msgid "Box:"
 msgstr "Polje:"
 
-#: app/tools/gimptextoptions.c:983
+#: app/tools/gimptextoptions.c:984
 msgid "Language:"
 msgstr "Jezik:"
 
@@ -27744,6 +27749,11 @@ msgstr "Zakleni položaj in velikost"
 msgid "Cannot select items while a floating selection is active."
 msgstr "Medtem, ko je plavajoči izbor dejaven, elementov ni mogoče izbrati."
 
+#: app/widgets/gimpdrawabletreeview.c:649 app/widgets/gimplayertreeview.c:915
+msgctxt "singular"
+msgid "New Layer"
+msgstr "Nova plast"
+
 #: app/widgets/gimpdrawabletreeview-filters.c:165
 msgid "Layer Effects"
 msgstr "Učinki plasti"
@@ -28200,6 +28210,11 @@ msgstr[1] "Indeksirane barve (%d barva, monokromatsko)"
 msgstr[2] "Indeksirane barve (%d barvi)"
 msgstr[3] "Indeksirane barve (%d barve)"
 
+#: app/widgets/gimpitemchooser.c:243 app/widgets/gimpitemchooser.c:571
+#: app/widgets/gimppickablechooser.c:241 app/widgets/gimppickablechooser.c:524
+msgid "Select an image in the left pane"
+msgstr "Izberite sliko iz levega podokna"
+
 #: app/widgets/gimpitemtreeview.c:570
 msgid "Set Item Exclusive Content Lock"
 msgstr "Predmetu določite izključen zaklep vsebine"
@@ -28399,10 +28414,6 @@ msgstr ""
 "Povratnega klica %s ni mogoče pognati.\n"
 "%s"
 
-#: app/widgets/gimppickablechooser.c:241 app/widgets/gimppickablechooser.c:524
-msgid "Select an image in the left pane"
-msgstr "Izberite sliko iz levega podokna"
-
 #: app/widgets/gimppluginview.c:146
 msgid "Plug-In"
 msgstr "Vtičnik"
@@ -28581,23 +28592,23 @@ msgstr "%d ppi"
 msgid "Line width:"
 msgstr "Širina črte:"
 
-#: app/widgets/gimpstrokeeditor.c:150
+#: app/widgets/gimpstrokeeditor.c:151
 msgid "_Cap style:"
 msgstr "Slog _zaključkov:"
 
-#: app/widgets/gimpstrokeeditor.c:156
+#: app/widgets/gimpstrokeeditor.c:158
 msgid "_Join style:"
 msgstr "_Slog stikališča:"
 
-#: app/widgets/gimpstrokeeditor.c:163
+#: app/widgets/gimpstrokeeditor.c:165
 msgid "_Miter limit:"
 msgstr "Meja _sredice:"
 
-#: app/widgets/gimpstrokeeditor.c:169
+#: app/widgets/gimpstrokeeditor.c:171
 msgid "Dash pattern:"
 msgstr "Črtkani vzorec:"
 
-#: app/widgets/gimpstrokeeditor.c:236
+#: app/widgets/gimpstrokeeditor.c:238
 msgid "Dash _preset:"
 msgstr "Prednastavitev _črtkane črte:"
 

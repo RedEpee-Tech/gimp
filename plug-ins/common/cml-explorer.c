@@ -204,8 +204,8 @@ static const gchar *arrange_names[ARRANGE_NUM_VALUES] =
   N_("With random power (0,10)"),
   N_("With random power (0,1)"),
   N_("With gradient power (0,1)"),
-  N_("Multiply rand. value (0,1)"),
-  N_("Multiply rand. value (0,2)"),
+  N_("Multiply random value (0,1)"),
+  N_("Multiply random value (0,2)"),
   N_("Multiply gradient (0,1)"),
   N_("With p and random (0,1)"),
 };
@@ -226,11 +226,11 @@ static const gchar *initial_value_names[CML_INITIAL_NUM_VALUES] =
   N_("All white"),
   N_("The first row of the image"),
   N_("Continuous gradient"),
-  N_("Continuous grad. w/o gap"),
-  N_("Random, ch. independent"),
+  N_("Continuous gradient, without gap"),
+  N_("Random, channel independent"),
   N_("Random shared"),
-  N_("Randoms from seed"),
-  N_("Randoms from seed (shared)")
+  N_("Random from seed"),
+  N_("Random from seed (shared)")
 };
 
 #define CML_PARAM_NUM   15
@@ -1790,21 +1790,21 @@ CML_dialog_channel_panel_new (CML_PARAM *param,
   gtk_widget_show (toggle);
   index++;
 
-  scale = gimp_scale_entry_new (_("Mod. rate:"), param->mod_rate, 0.0, 1.0, 2);
+  scale = gimp_scale_entry_new (_("Modification rate:"), param->mod_rate, 0.0, 1.0, 2);
   CML_explorer_double_entry_init (&widget_pointers[channel_id][index],
                                   scale, &param->mod_rate);
   gtk_grid_attach (GTK_GRID (grid), scale, 0, index, 3, 1);
   gtk_widget_show (scale);
   index++;
 
-  scale = gimp_scale_entry_new (_("Env. sensitivity:"), param->env_sensitivity, 0.0, 1.0, 2);
+  scale = gimp_scale_entry_new (_("Environment sensitivity:"), param->env_sensitivity, 0.0, 1.0, 2);
   CML_explorer_double_entry_init (&widget_pointers[channel_id][index],
                                   scale, &param->env_sensitivity);
   gtk_grid_attach (GTK_GRID (grid), scale, 0, index, 3, 1);
   gtk_widget_show (scale);
   index++;
 
-  scale = gimp_scale_entry_new (_("Diffusion dist.:"), param->diffusion_dist, 2, 10, 0);
+  scale = gimp_scale_entry_new (_("Diffusion distance:"), param->diffusion_dist, 2, 10, 0);
   CML_explorer_int_entry_init (&widget_pointers[channel_id][index],
                                scale, &param->diffusion_dist);
   gtk_grid_attach (GTK_GRID (grid), scale, 0, index, 3, 1);
@@ -1894,7 +1894,7 @@ CML_dialog_advanced_panel_new (void)
 
       index = 0;
 
-      scale = gimp_scale_entry_new (_("Ch. sensitivity:"), param->ch_sensitivity, 0.0, 1.0, 2);
+      scale = gimp_scale_entry_new (_("Channel sensitivity:"), param->ch_sensitivity, 0.0, 1.0, 2);
       CML_explorer_double_entry_init (&widget_pointers[channel_id][index +
                                                                   widget_offset],
                                       scale, &param->ch_sensitivity);
@@ -1910,7 +1910,7 @@ CML_dialog_advanced_panel_new (void)
       gtk_widget_show (scale);
       index++;
 
-      scale = gimp_scale_entry_new (_("Mutation dist.:"), param->mutation_dist, 0.0, 1.0, 2);
+      scale = gimp_scale_entry_new (_("Mutation distance:"), param->mutation_dist, 0.0, 1.0, 2);
       CML_explorer_double_entry_init (&widget_pointers[channel_id][index +
                                                                   widget_offset],
                                       scale, &param->mutation_dist);

@@ -37,8 +37,9 @@ struct _GimpPaintSelectTool
 {
   GimpDrawTool           parent_instance;
 
-  GimpPaintSelectMode    saved_mode;     /*  saved tool options state  */
+  GimpChannelOps         saved_op;       /*  selection mode before modifier press */
 
+  GimpChannelOps         painting_op;    /*  selection mode at start of painting. */
   GeglBuffer            *trimap;
   GeglBuffer            *image_mask;
   GeglBuffer            *drawable;
@@ -55,6 +56,8 @@ struct _GimpPaintSelectTool
   GeglNode              *render_node;
 
   GimpVector2            last_pos;
+
+  gboolean               process;
 };
 
 struct _GimpPaintSelectToolClass

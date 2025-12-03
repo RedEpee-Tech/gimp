@@ -35,6 +35,7 @@
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
 /* begin standard C headers. */
+#include "config.h"
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -643,12 +644,15 @@ char *csim_text;
 #define quoted_string 1
 #define comment 2
 
-#ifndef YY_NO_UNISTD_H
+#if !defined(YY_NO_UNISTD_H) && defined(HAVE_UNISTD_H)
 /* Special case for "unistd.h", since it is non-ANSI. We include it way
  * down here because we want the user's section 1 to have been scanned first.
  * The user has a chance to override it with an option.
  */
 #include <unistd.h>
+#endif
+#ifdef _WIN32
+#include <io.h>
 #endif
 
 #ifndef YY_EXTRA_TYPE

@@ -1,9 +1,9 @@
 project('gimp',
   'c', 'cpp',
-  version: '3.1.5',
+  version: '3.2.0-RC1+git',
   meson_version: '>=0.61.0',
   default_options: [
-    'cpp_std=gnu++14',
+    'cpp_std=c++14',
     'buildtype=debugoptimized',
   ],
 )
@@ -65,7 +65,7 @@ gimp_api_name = 'gimp-' + gimp_api_version
 
 
 # Libtool versioning
-gimp_interface_age = 1
+gimp_interface_age = 0
 
 gimp_binary_age = 100 * gimp_app_version_minor + gimp_app_version_micro
 lt_current      = 100 * gimp_app_version_minor + gimp_app_version_micro - gimp_interface_age
@@ -101,11 +101,19 @@ conf.set('GIMP_RC_VERSION', release and gimp_app_version_rc > 0 ? gimp_app_versi
 conf.set('GIMP_IS_RC_GIT', gimp_rc_git ? 1 : false)
 
 # Mutex version
-if not stable
-  conf.set_quoted('GIMP_MUTEX_VERSION', gimp_app_version)
+if not stable and gimp_app_version_rc <= 0
+  gimp_mutex_version = gimp_app_version
+elif gimp_app_version_rc > 0
+  # same as unstable gimp_app_version. See: https://gitlab.gnome.org/GNOME/gimp/-/issues/15341
+  if gimp_app_version_minor == 0
+    gimp_mutex_version = (gimp_app_version_major - 1).to_string() + '.' + '99'
+  else
+    gimp_mutex_version = gimp_app_version_major.to_string() + '.' + (gimp_app_version_minor - 1).to_string()
+  endif
 else
-  conf.set_quoted('GIMP_MUTEX_VERSION', gimp_app_version_major.to_string())
+  gimp_mutex_version = gimp_app_version_major.to_string()
 endif
+conf.set_quoted('GIMP_MUTEX_VERSION', gimp_mutex_version)
 
 versionconfig = configuration_data()
 versionconfig.set('GIMP_FULL_NAME',     full_name)
@@ -192,6 +200,16 @@ if platform_windows
   # AC_CHECK_PROG(ms_librarian, lib.exe, yes, no)
   # AM_CONDITIONAL(MS_LIB_AVAILABLE, test "x$ms_librarian" = xyes)
   # compiler_args += '-Wl,--large-address-aware'
+
+  if cc.get_argument_syntax() == 'msvc'
+    # MSVC's rc.exe style: /DKey=Value'
+    rc_define_flag = [] 
+    rc_define_fmt  = '/D@0@=@1@'
+  else
+    # GNU's windres.exe style: --define Key="Value"
+    rc_define_flag = ['--define']
+    rc_define_fmt  = '@0@="@1@"'
+  endif
 endif
 
 # on OSX ObjC and C sources are mixed so adding objc to the linkflags
@@ -397,16 +415,23 @@ endif
 conf.set('ENABLE_RELOCATABLE_RESOURCES', relocatable_bundle)
 
 
-math              = cc.find_library('m')
+math              = cc.find_library('m', required: false)
+if platform_windows
+  #Needed otherwise compilers get angry with the headers provided by UCRT
+  compiler_args +='-D_USE_MATH_DEFINES'
+endif
+
 # libdl is only required on Linux. On Windows and some (all?) BSD, it
 # doesn't exist, but the API exists in libc by default (see #8604). On
 # macOS, it apparently exists but linking it explicitly is actually
 # unneeded as well.
 dl                = cc.find_library('dl', required: platform_linux)
+
 rpc               = platform_windows ? cc.find_library('rpcrt4') : no_dep
 dbghelp           = platform_windows ? cc.find_library('dbghelp') : no_dep
 winsock           = platform_windows ? cc.find_library('ws2_32') : no_dep
 mscms             = platform_windows ? cc.find_library('mscms') : no_dep
+
 atk_minver        = '2.4.0'
 atk               = dependency('atk',                version: '>='+atk_minver)
 babl_minver       = '0.1.116'
@@ -436,7 +461,8 @@ gegl              = dependency('gegl-0.4',           version: '>='+gegl_minver)
 exiv2_minver      = '0.27.4'
 exiv2             = dependency('exiv2',              version: '>='+exiv2_minver)
 gexiv2_minver     = '0.14.0'
-gexiv2            = dependency('gexiv2',             version: '>='+gexiv2_minver)
+gexiv2_maxver     = '0.15.0'
+gexiv2            = dependency('gexiv2',             version: ['>='+gexiv2_minver, '<'+gexiv2_maxver])
 
 gio               = dependency('gio-2.0')
 gio_specific_name = platform_windows ? 'gio-windows-2.0' : 'gio-unix-2.0'
@@ -545,8 +571,15 @@ if meson.is_cross_build() and not meson.can_run_host_binaries()
 else # not meson.is_cross_build() or meson.can_run_host_binaries()
     glib_networking_works_run = cc.run(
       '''#include <gio/gio.h>
+      #include <stdio.h>
       int main() {
-        return !g_tls_backend_supports_tls (g_tls_backend_get_default ());
+        GTlsBackend *module = g_tls_backend_get_default ();
+        if (!g_tls_backend_supports_tls (module)) {
+          fprintf (stderr, "No valid SSL/TLS module found (%s). Maybe you need to set GIO_MODULE_DIR?\n", G_OBJECT_TYPE_NAME (module));
+          return 1;
+        }
+        fprintf (stdout, "Valid SSL/TLS module found (%s).\n", G_OBJECT_TYPE_NAME (module));
+        return 0;
       }''',
       dependencies: gio,
     )
@@ -754,10 +787,8 @@ libjpeg = dependency('libjpeg')
 
 zlib = dependency('zlib')
 
-# Compiler-provided headers can't be found in crossroads environment
-if not meson.is_cross_build()
-  bz2 = cc.find_library('bz2')
-else
+bz2 = cc.find_library('bz2', required: false)
+if not bz2.found()
   bz2 = dependency('bzip2')
 endif
 
@@ -1662,6 +1693,7 @@ install_conf.set('GDK_PIXBUF_REQUIRED_VERSION',   gdk_pixbuf_minver)
 install_conf.set('GEGL_REQUIRED_VERSION',         gegl_minver)
 install_conf.set('EXIV2_REQUIRED_VERSION',        exiv2_minver)
 install_conf.set('GEXIV2_REQUIRED_VERSION',       gexiv2_minver)
+install_conf.set('GEXIV2_MAX_VERSION',            gexiv2_maxver)
 install_conf.set('GLIB_REQUIRED_VERSION',         glib_minver)
 install_conf.set('GTK_REQUIRED_VERSION',          gtk3_minver)
 install_conf.set('HARFBUZZ_REQUIRED_VERSION',     harfbuzz_minver)

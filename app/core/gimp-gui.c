@@ -418,7 +418,7 @@ gimp_pdb_dialog_new (Gimp          *gimp,
   g_return_val_if_fail (GIMP_IS_CONTEXT (context), FALSE);
   g_return_val_if_fail (progress == NULL || GIMP_IS_PROGRESS (progress), FALSE);
   g_return_val_if_fail (g_type_is_a (contents_type, GIMP_TYPE_RESOURCE) ||
-                        g_type_is_a (contents_type, GIMP_TYPE_DRAWABLE) ||
+                        g_type_is_a (contents_type, GIMP_TYPE_ITEM)     ||
                         g_type_is_a (contents_type, GIMP_TYPE_IMAGE), FALSE);
   g_return_val_if_fail (object == NULL ||
                         g_type_is_a (G_TYPE_FROM_INSTANCE (object), contents_type), FALSE);
@@ -453,6 +453,7 @@ gimp_pdb_dialog_set (Gimp        *gimp,
   g_return_val_if_fail (GIMP_IS_GIMP (gimp), FALSE);
   g_return_val_if_fail (g_type_is_a (contents_type, GIMP_TYPE_RESOURCE) ||
                         contents_type == GIMP_TYPE_DRAWABLE             ||
+                        contents_type == GIMP_TYPE_ITEM                 ||
                         contents_type == GIMP_TYPE_IMAGE, FALSE);
   g_return_val_if_fail (callback_name != NULL, FALSE);
   g_return_val_if_fail (object == NULL || g_type_is_a (G_TYPE_FROM_INSTANCE (object), contents_type), FALSE);
@@ -480,6 +481,7 @@ gimp_pdb_dialog_close (Gimp          *gimp,
   g_return_val_if_fail (GIMP_IS_GIMP (gimp), FALSE);
   g_return_val_if_fail (g_type_is_a (contents_type, GIMP_TYPE_RESOURCE) ||
                         contents_type == GIMP_TYPE_DRAWABLE             ||
+                        contents_type == GIMP_TYPE_ITEM                 ||
                         contents_type == GIMP_TYPE_IMAGE, FALSE);
   g_return_val_if_fail (callback_name != NULL, FALSE);
 

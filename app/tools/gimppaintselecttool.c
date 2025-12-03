@@ -68,87 +68,84 @@
 #include "config/gimpguiconfig.h" /* playground */
 
 
-static void      gimp_paint_select_tool_control            (GimpTool           *tool,
-                                                            GimpToolAction      action,
-                                                            GimpDisplay        *display);
-static void      gimp_paint_select_tool_button_press       (GimpTool           *tool,
-                                                            const GimpCoords   *coords,
-                                                            guint32             time,
-                                                            GdkModifierType     state,
-                                                            GimpButtonPressType press_type,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_button_release     (GimpTool             *tool,
-                                                            const GimpCoords     *coords,
-                                                            guint32               time,
-                                                            GdkModifierType       state,
-                                                            GimpButtonReleaseType release_type,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_motion             (GimpTool             *tool,
-                                                            const GimpCoords     *coords,
-                                                            guint32               time,
-                                                            GdkModifierType       state,
-                                                            GimpDisplay          *display);
-static gboolean  gimp_paint_select_tool_key_press          (GimpTool             *tool,
-                                                            GdkEventKey          *kevent,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_modifier_key       (GimpTool             *tool,
-                                                            GdkModifierType       key,
-                                                            gboolean              press,
-                                                            GdkModifierType       state,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_oper_update        (GimpTool             *tool,
-                                                            const GimpCoords     *coords,
-                                                            GdkModifierType       state,
-                                                            gboolean              proximity,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_options_notify     (GimpTool             *tool,
-                                                            GimpToolOptions      *options,
-                                                            const GParamSpec     *pspec);
-static void      gimp_paint_select_tool_cursor_update      (GimpTool             *tool,
-                                                            const GimpCoords     *coords,
-                                                            GdkModifierType       state,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_draw               (GimpDrawTool         *draw_tool);
+static void      gimp_paint_select_tool_control                     (GimpTool             *tool,
+                                                                     GimpToolAction        action,
+                                                                     GimpDisplay          *display);
+static void      gimp_paint_select_tool_button_press                (GimpTool             *tool,
+                                                                     const GimpCoords     *coords,
+                                                                     guint32               time,
+                                                                     GdkModifierType       state,
+                                                                     GimpButtonPressType   press_type,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_button_release              (GimpTool              *tool,
+                                                                     const GimpCoords      *coords,
+                                                                     guint32                time,
+                                                                     GdkModifierType        state,
+                                                                     GimpButtonReleaseType  release_type,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_motion                      (GimpTool              *tool,
+                                                                     const GimpCoords      *coords,
+                                                                     guint32                time,
+                                                                     GdkModifierType        state,
+                                                                     GimpDisplay           *display);
+static gboolean  gimp_paint_select_tool_key_press                   (GimpTool              *tool,
+                                                                     GdkEventKey           *kevent,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_modifier_key                (GimpTool              *tool,
+                                                                     GdkModifierType        key,
+                                                                     gboolean               press,
+                                                                     GdkModifierType        state,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_oper_update                 (GimpTool              *tool,
+                                                                     const GimpCoords      *coords,
+                                                                     GdkModifierType        state,
+                                                                     gboolean               proximity,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_options_notify              (GimpTool              *tool,
+                                                                     GimpToolOptions       *options,
+                                                                     const GParamSpec      *pspec);
+static void      gimp_paint_select_tool_cursor_update               (GimpTool              *tool,
+                                                                     const GimpCoords      *coords,
+                                                                     GdkModifierType        state,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_draw                        (GimpDrawTool          *draw_tool);
 
-static void      gimp_paint_select_tool_halt               (GimpPaintSelectTool  *ps_tool);
+static void      gimp_paint_select_tool_progress                    (GeglNode              *ps_node,
+                                                                     gdouble                value,
+                                                                     GimpProgress          *progress);
 
-static void      gimp_paint_select_tool_update_image_mask  (GimpPaintSelectTool  *ps_tool,
-                                                            GeglBuffer           *buffer,
-                                                            gint                  offset_x,
-                                                            gint                  offset_y,
-                                                            GimpPaintSelectMode   mode);
-static void      gimp_paint_select_tool_init_buffers       (GimpPaintSelectTool  *ps_tool,
-                                                            GimpImage            *image,
-                                                            GimpDrawable         *drawable);
-static gboolean  gimp_paint_select_tool_can_paint          (GimpPaintSelectTool  *ps_tool,
-                                                            GimpDisplay          *display,
-                                                            gboolean              show_message);
-static gboolean  gimp_paint_select_tool_start              (GimpPaintSelectTool  *ps_tool,
-                                                            GimpDisplay          *display);
-static void      gimp_paint_select_tool_init_scribble      (GimpPaintSelectTool  *ps_tool);
+static void      gimp_paint_select_tool_halt                        (GimpPaintSelectTool   *ps_tool);
 
-static void      gimp_paint_select_tool_create_graph       (GimpPaintSelectTool  *ps_tool);
+static void      gimp_paint_select_tool_update_image_mask           (GimpPaintSelectTool   *ps_tool,
+                                                                     GeglBuffer            *buffer,
+                                                                     gint                   offset_x,
+                                                                     gint                   offset_y);
+static void      gimp_paint_select_tool_init_buffers                (GimpPaintSelectTool   *ps_tool,
+                                                                     GimpImage             *image,
+                                                                     GimpDrawable          *drawable);
+static gboolean  gimp_paint_select_tool_can_paint                   (GimpPaintSelectTool   *ps_tool,
+                                                                     GimpDisplay           *display,
+                                                                     gboolean               show_message);
+static gboolean  gimp_paint_select_tool_start                       (GimpPaintSelectTool   *ps_tool,
+                                                                     GimpDisplay           *display);
+static void      gimp_paint_select_tool_init_scribble               (GimpPaintSelectTool   *ps_tool);
 
-static gboolean  gimp_paint_select_tool_paint_scribble     (GimpPaintSelectTool  *ps_tool);
+static void      gimp_paint_select_tool_create_graph                (GimpPaintSelectTool   *ps_tool);
 
-static void      gimp_paint_select_tool_toggle_scribbles_visibility (GimpPaintSelectTool  *ps_tool);
+static gboolean  gimp_paint_select_tool_paint_scribble              (GimpPaintSelectTool   *ps_tool);
 
-static GeglRectangle gimp_paint_select_tool_get_local_region (GimpDisplay        *display,
-                                                              gint                brush_x,
-                                                              gint                brush_y,
-                                                              gint                drawable_off_x,
-                                                              gint                drawable_off_y,
-                                                              gint                drawable_width,
-                                                              gint                drawable_height);
+static void      gimp_paint_select_tool_toggle_scribbles_visibility (GimpPaintSelectTool   *ps_tool);
 
-static gfloat euclidean_distance                           (gint                  x1,
-                                                            gint                  y1,
-                                                            gint                  x2,
-                                                            gint                  y2);
+static GeglRectangle gimp_paint_select_tool_get_local_region        (GimpPaintSelectTool   *ps_tool,
+                                                                     GimpDisplay           *display);
+
+static gfloat    euclidean_distance                                 (gint                   x1,
+                                                                     gint                   y1,
+                                                                     gint                   x2,
+                                                                     gint                   y2);
 
 
-G_DEFINE_TYPE (GimpPaintSelectTool, gimp_paint_select_tool,
-               GIMP_TYPE_DRAW_TOOL)
+G_DEFINE_TYPE (GimpPaintSelectTool, gimp_paint_select_tool, GIMP_TYPE_DRAW_TOOL)
 
 #define parent_class gimp_paint_select_tool_parent_class
 
@@ -175,8 +172,8 @@ gimp_paint_select_tool_register (GimpToolRegisterCallback  callback,
 static void
 gimp_paint_select_tool_class_init (GimpPaintSelectToolClass *klass)
 {
-  GimpToolClass              *tool_class      = GIMP_TOOL_CLASS (klass);
-  GimpDrawToolClass          *draw_tool_class = GIMP_DRAW_TOOL_CLASS (klass);
+  GimpToolClass     *tool_class      = GIMP_TOOL_CLASS (klass);
+  GimpDrawToolClass *draw_tool_class = GIMP_DRAW_TOOL_CLASS (klass);
 
   tool_class->button_press           = gimp_paint_select_tool_button_press;
   tool_class->button_release         = gimp_paint_select_tool_button_release;
@@ -196,20 +193,20 @@ gimp_paint_select_tool_init (GimpPaintSelectTool *ps_tool)
 {
   GimpTool *tool = GIMP_TOOL (ps_tool);
 
-  gimp_tool_control_set_motion_mode (tool->control, GIMP_MOTION_MODE_EXACT);
-  gimp_tool_control_set_scroll_lock (tool->control, FALSE);
-  gimp_tool_control_set_preserve    (tool->control, FALSE);
-  gimp_tool_control_set_dirty_mask  (tool->control,
-                                     GIMP_DIRTY_IMAGE           |
-                                     GIMP_DIRTY_ACTIVE_DRAWABLE);
-  gimp_tool_control_set_dirty_action (tool->control,
-                                      GIMP_TOOL_ACTION_HALT);
-  gimp_tool_control_set_precision   (tool->control,
-                                     GIMP_CURSOR_PRECISION_SUBPIXEL);
-  gimp_tool_control_set_tool_cursor (tool->control,
-                                     GIMP_TOOL_CURSOR_PAINTBRUSH);
-  gimp_tool_control_set_cursor_modifier (tool->control,
-                                         GIMP_CURSOR_MODIFIER_PLUS);
+  gimp_tool_control_set_motion_mode       (tool->control, GIMP_MOTION_MODE_EXACT);
+  gimp_tool_control_set_scroll_lock       (tool->control, FALSE);
+  gimp_tool_control_set_preserve          (tool->control, FALSE);
+  gimp_tool_control_set_dirty_mask        (tool->control,
+                                           GIMP_DIRTY_IMAGE           |
+                                           GIMP_DIRTY_ACTIVE_DRAWABLE);
+  gimp_tool_control_set_dirty_action      (tool->control,
+                                           GIMP_TOOL_ACTION_HALT);
+  gimp_tool_control_set_precision         (tool->control,
+                                           GIMP_CURSOR_PRECISION_SUBPIXEL);
+  gimp_tool_control_set_tool_cursor       (tool->control,
+                                           GIMP_TOOL_CURSOR_PAINTBRUSH);
+  gimp_tool_control_set_cursor_modifier   (tool->control,
+                                           GIMP_CURSOR_MODIFIER_PLUS);
   gimp_tool_control_set_action_pixel_size (tool->control,
                                            "tools-paint-select-pixel-size-set");
   /* TODO: the size-set action is not implemented. */
@@ -232,7 +229,9 @@ gimp_paint_select_tool_button_press (GimpTool            *tool,
                                      GimpButtonPressType  press_type,
                                      GimpDisplay         *display)
 {
-  GimpPaintSelectTool  *ps_tool = GIMP_PAINT_SELECT_TOOL (tool);
+  GimpPaintSelectTool    *ps_tool = GIMP_PAINT_SELECT_TOOL (tool);
+  GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (ps_tool);
+  GeglColor              *grey    = gegl_color_new ("#888");
 
   if (tool->display && display != tool->display)
      gimp_tool_control (tool, GIMP_TOOL_ACTION_HALT, tool->display);
@@ -248,21 +247,26 @@ gimp_paint_select_tool_button_press (GimpTool            *tool,
   ps_tool->last_pos.x = coords->x;
   ps_tool->last_pos.y = coords->y;
 
-  if (gimp_paint_select_tool_paint_scribble (ps_tool))
+  /* Always reset the "scribbles" to start with a blank slate. */
+  gegl_buffer_set_color (ps_tool->trimap, NULL, grey);
+
+  if (options->operation == GIMP_CHANNEL_OP_ADD)
     {
-      GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (ps_tool);
-
-      gint offset_x = ps_tool->last_pos.x - options->stroke_width / 2;
-      gint offset_y = ps_tool->last_pos.y - options->stroke_width / 2;
-
-      gimp_paint_select_tool_update_image_mask (ps_tool,
-                                                ps_tool->scribble,
-                                                offset_x,
-                                                offset_y,
-                                                options->mode);
+      gegl_node_set (ps_tool->ps_node, "mode", 0, NULL);
+      gegl_node_set (ps_tool->threshold_node, "value", 0.99, NULL);
     }
+  else
+    {
+      gegl_node_set (ps_tool->ps_node, "mode", 1, NULL);
+      gegl_node_set (ps_tool->threshold_node, "value", 0.01, NULL);
+    }
+  ps_tool->painting_op = options->operation;
+
+  ps_tool->process = gimp_paint_select_tool_paint_scribble (ps_tool);
 
   gimp_tool_control_activate (tool->control);
+
+  g_object_unref (grey);
 }
 
 static void
@@ -273,10 +277,66 @@ gimp_paint_select_tool_button_release (GimpTool              *tool,
                                        GimpButtonReleaseType  release_type,
                                        GimpDisplay           *display)
 {
-  GimpDrawTool  *draw_tool = GIMP_DRAW_TOOL (tool);
+  GimpPaintSelectTool *ps_tool   = GIMP_PAINT_SELECT_TOOL (tool);
+  GimpDrawTool        *draw_tool = GIMP_DRAW_TOOL (tool);
 
   gimp_draw_tool_pause (draw_tool);
   gimp_tool_control_halt (tool->control);
+
+  if (ps_tool->process)
+    {
+      GTimer        *timer = g_timer_new ();
+      GimpProgress  *progress;
+      GeglBuffer    *result;
+      GeglRectangle  local_region;
+
+      progress = gimp_progress_start (GIMP_PROGRESS (tool), FALSE,
+                                      "%s", "Selecting");
+
+      while (g_main_context_pending (NULL))
+        g_main_context_iteration (NULL, FALSE);
+
+      local_region = gimp_paint_select_tool_get_local_region (ps_tool, display);
+
+      if (local_region.width < ps_tool->drawable_width ||
+          local_region.height < ps_tool->drawable_height)
+        {
+          gegl_node_set (ps_tool->ps_node,
+                         "use_local_region", TRUE,
+                         "region_x",         local_region.x,
+                         "region_y",         local_region.y,
+                         "region_width",     local_region.width,
+                         "region_height",    local_region.height,
+                         NULL);
+        }
+      else
+        {
+          gegl_node_set (ps_tool->ps_node,
+                         "use_local_region", FALSE, NULL);
+        }
+
+      gegl_node_set (ps_tool->render_node, "buffer", &result, NULL);
+      g_signal_connect (ps_tool->ps_node, "progress",
+                        G_CALLBACK (gimp_paint_select_tool_progress),
+                        ps_tool);
+      gegl_node_process (ps_tool->render_node);
+      g_signal_handlers_disconnect_by_func (ps_tool->ps_node,
+                                            G_CALLBACK (gimp_paint_select_tool_progress),
+                                            ps_tool);
+
+      g_timer_stop (timer);
+      g_printerr ("processing graph takes %.3f s\n\n", g_timer_elapsed (timer, NULL));
+      g_timer_destroy (timer);
+
+      gimp_paint_select_tool_update_image_mask (ps_tool,
+                                                result,
+                                                ps_tool->drawable_off_x,
+                                                ps_tool->drawable_off_y);
+      if (progress)
+        gimp_progress_end (progress);
+      g_object_unref (result);
+    }
+
   gimp_draw_tool_resume (draw_tool);
 }
 
@@ -312,10 +372,10 @@ gimp_paint_select_tool_cursor_update (GimpTool         *tool,
                                       GdkModifierType   state,
                                       GimpDisplay      *display)
 {
-  GimpPaintSelectOptions    *options  = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (tool);
-  GimpCursorModifier  modifier        = GIMP_CURSOR_MODIFIER_NONE;
+  GimpPaintSelectOptions *options  = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (tool);
+  GimpCursorModifier      modifier = GIMP_CURSOR_MODIFIER_NONE;
 
-  if (options->mode == GIMP_PAINT_SELECT_MODE_ADD)
+  if (options->operation == GIMP_CHANNEL_OP_ADD)
     {
       modifier = GIMP_CURSOR_MODIFIER_PLUS;
     }
@@ -330,15 +390,15 @@ gimp_paint_select_tool_cursor_update (GimpTool         *tool,
 }
 
 static gboolean
-gimp_paint_select_tool_can_paint (GimpPaintSelectTool  *ps_tool,
-                                  GimpDisplay          *display,
-                                  gboolean              show_message)
+gimp_paint_select_tool_can_paint (GimpPaintSelectTool *ps_tool,
+                                  GimpDisplay         *display,
+                                  gboolean             show_message)
 {
-  GimpTool        *tool      = GIMP_TOOL (ps_tool);
-  GimpGuiConfig   *config    = GIMP_GUI_CONFIG (display->gimp->config);
-  GimpImage       *image     = gimp_display_get_image (display);
-  GList           *drawables = gimp_image_get_selected_drawables (image);
-  GimpDrawable    *drawable;
+  GimpTool      *tool      = GIMP_TOOL (ps_tool);
+  GimpGuiConfig *config    = GIMP_GUI_CONFIG (display->gimp->config);
+  GimpImage     *image     = gimp_display_get_image (display);
+  GList         *drawables = gimp_image_get_selected_drawables (image);
+  GimpDrawable  *drawable;
 
   if (g_list_length (drawables) != 1)
     {
@@ -387,12 +447,12 @@ gimp_paint_select_tool_can_paint (GimpPaintSelectTool  *ps_tool,
 }
 
 static gboolean
-gimp_paint_select_tool_start (GimpPaintSelectTool  *ps_tool,
-                              GimpDisplay          *display)
+gimp_paint_select_tool_start (GimpPaintSelectTool *ps_tool,
+                              GimpDisplay         *display)
 {
-  GimpTool      *tool       = GIMP_TOOL (ps_tool);
-  GimpImage     *image      = gimp_display_get_image (display);
-  GimpDrawable  *drawable;
+  GimpTool     *tool  = GIMP_TOOL (ps_tool);
+  GimpImage    *image = gimp_display_get_image (display);
+  GimpDrawable *drawable;
 
   if (! gimp_paint_select_tool_can_paint (ps_tool, display, TRUE))
     return FALSE;
@@ -436,52 +496,51 @@ gimp_paint_select_tool_modifier_key (GimpTool        *tool,
   extend_mask = gimp_get_extend_selection_mask ();
   modify_mask = gimp_get_modify_selection_mask ();
 
-    if (key == extend_mask ||
-        key == modify_mask ||
-        key == GDK_MOD1_MASK)
-      {
-        GimpPaintSelectMode button_mode = options->mode;
+  if (key == extend_mask ||
+      key == modify_mask ||
+      key == GDK_MOD1_MASK)
+    {
+      GimpChannelOps button_op = options->operation;
 
-        state &= extend_mask | modify_mask | GDK_MOD1_MASK;
+      state &= extend_mask | modify_mask | GDK_MOD1_MASK;
 
-        if (press)
-          {
-            if (key == state || ! state)
-              ps_tool->saved_mode = options->mode;
-          }
-        else
-          {
-            if (! state)
-              button_mode = ps_tool->saved_mode;
-          }
+      if (press)
+        {
+          if (key == state || ! state)
+            ps_tool->saved_op = options->operation;
+        }
+      else
+        {
+          if (! state)
+            button_op = ps_tool->saved_op;
+        }
 
-        if (state & GDK_MOD1_MASK)
-          {
-            button_mode = ps_tool->saved_mode;
-          }
-        else if (state & (extend_mask | modify_mask))
-          {
-            GimpChannelOps op = gimp_modifiers_to_channel_op (state);
+      if (state & GDK_MOD1_MASK)
+        {
+          button_op = ps_tool->saved_op;
+        }
+      else if (state & (extend_mask | modify_mask))
+        {
+          GimpChannelOps op = gimp_modifiers_to_channel_op (state);
 
-            switch (op)
-              {
-              case GIMP_CHANNEL_OP_ADD:
-                button_mode = GIMP_PAINT_SELECT_MODE_ADD;
-                break;
+          switch (op)
+            {
+            case GIMP_CHANNEL_OP_ADD:
+              button_op = GIMP_CHANNEL_OP_ADD;
+              break;
 
-              case GIMP_CHANNEL_OP_SUBTRACT:
-                button_mode = GIMP_PAINT_SELECT_MODE_SUBTRACT;
-                break;
+            case GIMP_CHANNEL_OP_SUBTRACT:
+              button_op = GIMP_CHANNEL_OP_SUBTRACT;
+              break;
 
-              default:
-                break;
-              }
-          }
+            default:
+              break;
+            }
+        }
 
-        if (button_mode != options->mode)
-          g_object_set (options, "mode", button_mode, NULL);
-      }
-
+      if (button_op != options->operation)
+        g_object_set (options, "operation", button_op, NULL);
+    }
 }
 
 static void
@@ -492,17 +551,8 @@ gimp_paint_select_tool_motion (GimpTool         *tool,
                                GimpDisplay      *display)
 {
   GimpPaintSelectTool *ps_tool = GIMP_PAINT_SELECT_TOOL (tool);
-  GimpDrawTool        *draw_tool = GIMP_DRAW_TOOL (tool);
-
-  static guint32 last_time = 0;
 
   GIMP_TOOL_CLASS (parent_class)->motion (tool, coords, time, state, display);
-
-  /* don't let the events come in too fast, ignore below a delay of 100 ms */
-  if (time - last_time < 100)
-    return;
-
-  last_time = time;
 
   if (state & GDK_BUTTON1_MASK)
     {
@@ -513,71 +563,12 @@ gimp_paint_select_tool_motion (GimpTool         *tool,
 
       if (distance >= 2.f)
         {
-          gimp_draw_tool_pause (draw_tool);
-          gimp_tool_control_halt (tool->control);
+          gimp_draw_tool_pause (GIMP_DRAW_TOOL (tool));
           ps_tool->last_pos.x = coords->x;
           ps_tool->last_pos.y = coords->y;
 
-          if (gimp_paint_select_tool_paint_scribble (ps_tool))
-            {
-              GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (ps_tool);
-              GeglRectangle  local_region;
-              GeglBuffer  *result;
-              GTimer      *timer;
-
-              local_region = gimp_paint_select_tool_get_local_region (display,
-                                                       coords->x, coords->y,
-                                                       ps_tool->drawable_off_x,
-                                                       ps_tool->drawable_off_y,
-                                                       ps_tool->drawable_width,
-                                                       ps_tool->drawable_height);
-
-              if (options->mode == GIMP_PAINT_SELECT_MODE_ADD)
-                {
-                  gegl_node_set (ps_tool->ps_node, "mode", 0, NULL);
-                  gegl_node_set (ps_tool->threshold_node, "value", 0.99, NULL);
-                }
-              else
-                {
-                  gegl_node_set (ps_tool->ps_node, "mode", 1, NULL);
-                  gegl_node_set (ps_tool->threshold_node, "value", 0.01, NULL);
-                }
-
-              if (local_region.width < ps_tool->drawable_width ||
-                  local_region.height < ps_tool->drawable_height)
-                {
-                  gegl_node_set (ps_tool->ps_node,
-                                 "use_local_region", TRUE,
-                                 "region_x", local_region.x,
-                                 "region_y", local_region.y,
-                                 "region_width", local_region.width,
-                                 "region_height", local_region.height,
-                                 NULL);
-                }
-              else
-                {
-                  gegl_node_set (ps_tool->ps_node,
-                                 "use_local_region", FALSE, NULL);
-                }
-
-              gegl_node_set (ps_tool->render_node, "buffer", &result, NULL);
-
-              timer = g_timer_new ();;
-              gegl_node_process (ps_tool->render_node);
-              g_timer_stop (timer);
-              g_printerr ("processing graph takes %.3f s\n\n", g_timer_elapsed (timer, NULL));
-              g_timer_destroy (timer);
-
-              gimp_paint_select_tool_update_image_mask (ps_tool,
-                                                        result,
-                                                        ps_tool->drawable_off_x,
-                                                        ps_tool->drawable_off_y,
-                                                        options->mode);
-              g_object_unref (result);
-            }
-
-          gimp_tool_control_activate (tool->control);
-          gimp_draw_tool_resume (draw_tool);
+          ps_tool->process |= gimp_paint_select_tool_paint_scribble (ps_tool);
+          gimp_draw_tool_resume (GIMP_DRAW_TOOL (tool));
         }
     }
 }
@@ -589,8 +580,8 @@ gimp_paint_select_tool_oper_update (GimpTool         *tool,
                                     gboolean          proximity,
                                     GimpDisplay      *display)
 {
-  GimpPaintSelectTool *ps = GIMP_PAINT_SELECT_TOOL (tool);
-  GimpDrawTool *draw_tool = GIMP_DRAW_TOOL (tool);
+  GimpPaintSelectTool *ps        = GIMP_PAINT_SELECT_TOOL (tool);
+  GimpDrawTool        *draw_tool = GIMP_DRAW_TOOL (tool);
 
   if (proximity)
     {
@@ -617,8 +608,8 @@ static void
 gimp_paint_select_tool_draw (GimpDrawTool *draw_tool)
 {
   GimpPaintSelectTool    *paint_select = GIMP_PAINT_SELECT_TOOL (draw_tool);
-  GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (paint_select);
-  gint size = options->stroke_width;
+  GimpPaintSelectOptions *options      = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (paint_select);
+  gint                    size         = options->stroke_width;
 
   gimp_draw_tool_add_arc (draw_tool,
                           FALSE,
@@ -633,7 +624,7 @@ gimp_paint_select_tool_options_notify (GimpTool         *tool,
                                        GimpToolOptions  *options,
                                        const GParamSpec *pspec)
 {
-  GimpPaintSelectTool  *ps_tool = GIMP_PAINT_SELECT_TOOL (tool);
+  GimpPaintSelectTool *ps_tool = GIMP_PAINT_SELECT_TOOL (tool);
 
   if (g_strcmp0 (pspec->name, "stroke-width") == 0)
     {
@@ -659,19 +650,29 @@ gimp_paint_select_tool_options_notify (GimpTool         *tool,
 }
 
 static void
+gimp_paint_select_tool_progress (GeglNode     *ps_node,
+                                 gdouble       value,
+                                 GimpProgress *progress)
+{
+  gimp_progress_set_value (progress, value);
+  while (g_main_context_pending (NULL))
+    g_main_context_iteration (NULL, FALSE);
+}
+
+static void
 gimp_paint_select_tool_halt (GimpPaintSelectTool *ps_tool)
 {
-  GimpTool     *tool = GIMP_TOOL (ps_tool);
+  GimpTool *tool = GIMP_TOOL (ps_tool);
 
   g_clear_object (&ps_tool->trimap);
   g_clear_object (&ps_tool->graph);
   g_clear_object (&ps_tool->scribble);
 
-  ps_tool->drawable = NULL;
+  ps_tool->drawable    = NULL;
   ps_tool->render_node = NULL;
-  ps_tool->ps_node = NULL;
+  ps_tool->ps_node     = NULL;
 
-  ps_tool->image_mask = NULL;
+  ps_tool->image_mask  = NULL;
 
   if (tool->display)
     {
@@ -689,27 +690,20 @@ static void
 gimp_paint_select_tool_update_image_mask (GimpPaintSelectTool *ps_tool,
                                           GeglBuffer          *buffer,
                                           gint                 offset_x,
-                                          gint                 offset_y,
-                                          GimpPaintSelectMode  mode)
+                                          gint                 offset_y)
 {
-  GimpTool  *tool = GIMP_TOOL (ps_tool);
-  GimpChannelOps op;
+  GimpTool *tool = GIMP_TOOL (ps_tool);
 
   if (tool->display)
     {
       GimpImage *image = gimp_display_get_image (tool->display);
-
-      if (mode == GIMP_PAINT_SELECT_MODE_ADD)
-        op = GIMP_CHANNEL_OP_ADD;
-      else
-        op = GIMP_CHANNEL_OP_SUBTRACT;
 
       gimp_channel_select_buffer (gimp_image_get_mask (image),
                                   C_("command", "Paint Select"),
                                   buffer,
                                   offset_x,
                                   offset_y,
-                                  op,
+                                  ps_tool->painting_op,
                                   FALSE,
                                   0,
                                   0);
@@ -718,12 +712,12 @@ gimp_paint_select_tool_update_image_mask (GimpPaintSelectTool *ps_tool,
 }
 
 static void
-gimp_paint_select_tool_init_buffers (GimpPaintSelectTool  *ps_tool,
-                                     GimpImage            *image,
-                                     GimpDrawable         *drawable)
+gimp_paint_select_tool_init_buffers (GimpPaintSelectTool *ps_tool,
+                                     GimpImage           *image,
+                                     GimpDrawable        *drawable)
 {
-  GimpChannel  *channel;
-  GeglColor    *grey = gegl_color_new ("#888");
+  GimpChannel *channel;
+  GeglColor   *grey = gegl_color_new ("#888");
 
   g_return_if_fail (ps_tool->trimap == NULL);
   g_return_if_fail (ps_tool->drawable == NULL);
@@ -746,15 +740,14 @@ gimp_paint_select_tool_init_buffers (GimpPaintSelectTool  *ps_tool,
 }
 
 static void
-gimp_paint_select_tool_init_scribble (GimpPaintSelectTool  *ps_tool)
+gimp_paint_select_tool_init_scribble (GimpPaintSelectTool *ps_tool)
 {
   GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (ps_tool);
-
-  GimpScanConvert  *scan_convert;
-  GimpVector2       points[2];
-  gint              size   = options->stroke_width;
-  gint              radius = size / 2;
-  GeglRectangle     square = {0, 0, size, size};
+  GimpScanConvert        *scan_convert;
+  GimpVector2             points[2];
+  gint                    size   = options->stroke_width;
+  gint                    radius = size / 2;
+  GeglRectangle           square = {0, 0, size, size};
 
   if (ps_tool->scribble)
     g_object_unref (ps_tool->scribble);
@@ -776,18 +769,16 @@ gimp_paint_select_tool_init_scribble (GimpPaintSelectTool  *ps_tool)
 }
 
 static gboolean
-gimp_paint_select_tool_paint_scribble (GimpPaintSelectTool  *ps_tool)
+gimp_paint_select_tool_paint_scribble (GimpPaintSelectTool *ps_tool)
 {
   GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (ps_tool);
-
-  gint  size   = options->stroke_width;
-  gint  radius = size / 2;
-  GeglRectangle  trimap_area;
-  GeglRectangle  mask_area;
-
-  GeglBufferIterator  *iter;
-  gfloat scribble_value;
-  gboolean overlap = FALSE;
+  gint                    size    = options->stroke_width;
+  gint                    radius  = size / 2;
+  GeglRectangle           trimap_area;
+  GeglRectangle           mask_area;
+  GeglBufferIterator     *iter;
+  gfloat                  scribble_value;
+  gboolean                overlap = FALSE;
 
   if (! ps_tool->scribble)
     {
@@ -798,7 +789,7 @@ gimp_paint_select_tool_paint_scribble (GimpPaintSelectTool  *ps_tool)
      an optimization should be triggered.
    */
 
-  if (options->mode == GIMP_PAINT_SELECT_MODE_ADD)
+  if (ps_tool->painting_op == GIMP_CHANNEL_OP_ADD)
     {
       scribble_value = 1.f;
     }
@@ -811,7 +802,7 @@ gimp_paint_select_tool_paint_scribble (GimpPaintSelectTool  *ps_tool)
                                    babl_format ("Y float"),
                                    GEGL_ACCESS_READ, GEGL_ABYSS_NONE, 3);
 
-  mask_area = *gegl_buffer_get_extent (ps_tool->scribble);
+  mask_area   = *gegl_buffer_get_extent (ps_tool->scribble);
   mask_area.x = ps_tool->last_pos.x - radius;
   mask_area.y = ps_tool->last_pos.y - radius;
 
@@ -859,11 +850,11 @@ gimp_paint_select_tool_paint_scribble (GimpPaintSelectTool  *ps_tool)
 static void
 gimp_paint_select_tool_create_graph (GimpPaintSelectTool  *ps_tool)
 {
-  GeglNode  *t;         /* trimap */
-  GeglNode  *m;         /* mask   */
-  GeglNode  *d;         /* drawable */
-  GeglNode  *crop;
-  GeglNode  *translate = NULL;
+  GeglNode *t;         /* trimap */
+  GeglNode *m;         /* mask   */
+  GeglNode *d;         /* drawable */
+  GeglNode *crop;
+  GeglNode *translate = NULL;
 
   ps_tool->graph = gegl_node_new ();
 
@@ -924,10 +915,10 @@ gimp_paint_select_tool_create_graph (GimpPaintSelectTool  *ps_tool)
 }
 
 static void
-gimp_paint_select_tool_toggle_scribbles_visibility (GimpPaintSelectTool  *ps_tool)
+gimp_paint_select_tool_toggle_scribbles_visibility (GimpPaintSelectTool *ps_tool)
 {
-  GimpTool  *tool = GIMP_TOOL (ps_tool);
-  GimpPaintSelectOptions  *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (tool);
+  GimpTool               *tool    = GIMP_TOOL (ps_tool);
+  GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (tool);
 
   if (options->show_scribbles)
     {
@@ -949,45 +940,34 @@ gimp_paint_select_tool_toggle_scribbles_visibility (GimpPaintSelectTool  *ps_too
 }
 
 static GeglRectangle
-gimp_paint_select_tool_get_local_region (GimpDisplay  *display,
-                                         gint          brush_x,
-                                         gint          brush_y,
-                                         gint          drawable_off_x,
-                                         gint          drawable_off_y,
-                                         gint          drawable_width,
-                                         gint          drawable_height)
+gimp_paint_select_tool_get_local_region (GimpPaintSelectTool *ps_tool,
+                                         GimpDisplay         *display)
 {
-  GimpDisplayShell  *shell;
-  GeglRectangle      brush_window;
-  GeglRectangle      drawable_region;
-  GeglRectangle      viewport;
-  GeglRectangle      local_region;
-  gdouble            x, y, w, h;
+  GimpPaintSelectOptions *options = GIMP_PAINT_SELECT_TOOL_GET_OPTIONS (ps_tool);
+  GimpDisplayShell       *shell;
+  GeglRectangle           drawable_region;
+  GeglRectangle           viewport;
+  GeglRectangle           local_region;
+  gdouble                 x, y, w, h;
+  gint                    radius = ceil (options->stroke_width / 2.0);
 
   shell = gimp_display_get_shell (display);
   gimp_display_shell_scroll_get_viewport (shell, &x, &y, &w, &h);
 
-  viewport.x      = (gint) x;
-  viewport.y      = (gint) y;
-  viewport.width  = (gint) w;
-  viewport.height = (gint) h;
+  viewport.x             = (gint) x - radius;
+  viewport.y             = (gint) y - radius;
+  viewport.width         = (gint) w + options->stroke_width;
+  viewport.height        = (gint) h + options->stroke_width;
 
-  brush_window.x      = brush_x - viewport.width / 2;
-  brush_window.y      = brush_y - viewport.height / 2;
-  brush_window.width  = viewport.width;
-  brush_window.height = viewport.height;
+  drawable_region.x      = ps_tool->drawable_off_x;
+  drawable_region.y      = ps_tool->drawable_off_y;
+  drawable_region.width  = ps_tool->drawable_width;
+  drawable_region.height = ps_tool->drawable_height;
 
-  gegl_rectangle_bounding_box (&local_region, &brush_window, &viewport);
+  gegl_rectangle_intersect (&local_region, &viewport, &drawable_region);
 
-  drawable_region.x      = drawable_off_x;
-  drawable_region.y      = drawable_off_y;
-  drawable_region.width  = drawable_width;
-  drawable_region.height = drawable_height;
-
-  gegl_rectangle_intersect (&local_region, &local_region, &drawable_region);
-
-  local_region.x -= drawable_off_x;
-  local_region.y -= drawable_off_y;
+  local_region.x -= ps_tool->drawable_off_x;
+  local_region.y -= ps_tool->drawable_off_y;
 
   g_printerr ("local region: (%d,%d) %d x %d\n",
               local_region.x, local_region.y,
@@ -997,10 +977,10 @@ gimp_paint_select_tool_get_local_region (GimpDisplay  *display,
 }
 
 static gfloat
-euclidean_distance (gint  x1,
-                    gint  y1,
-                    gint  x2,
-                    gint  y2)
+euclidean_distance (gint x1,
+                    gint y1,
+                    gint x2,
+                    gint y2)
 {
   return sqrtf ((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 }

@@ -21,7 +21,18 @@
 #include "config.h"
 
 #include <string.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+#if defined(_WIN32) && !defined(HAVE_SYS_TIME_H)
+#include <time.h>
+#include <windows.h>
+#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+#define DELTA_EPOCH_IN_MICROSECS 11644473600000000Ui64
+#else
+#define DELTA_EPOCH_IN_MICROSECS 11644473600000000ULL
+#endif
+#endif
 
 #include <gexiv2/gexiv2.h>
 
@@ -619,6 +630,50 @@ gimp_image_metadata_set_xmp_structs (GList          *xmp_list,
   return exclude;
 }
 
+#if defined(_WIN32) && ! defined(HAVE_SYS_TIME_H)
+struct timezone
+{
+  int tz_minuteswest; /* minutes W of Greenwich */
+  int tz_dsttime;     /* type of dst correction */
+};
+
+int
+gettimeofday (struct timeval *tv, struct timezone *tz)
+{
+  FILETIME         ft;
+  unsigned __int64 tmpres = 0;
+  static int       tzflag = 0;
+
+  if (NULL != tv)
+    {
+      GetSystemTimeAsFileTime (&ft);
+
+      tmpres |= ft.dwHighDateTime;
+      tmpres <<= 32;
+      tmpres |= ft.dwLowDateTime;
+
+      tmpres /= 10; /*convert into microseconds*/
+      /*converting file time to unix epoch*/
+      tmpres -= DELTA_EPOCH_IN_MICROSECS;
+      tv->tv_sec  = (long) (tmpres / 1000000UL);
+      tv->tv_usec = (long) (tmpres % 1000000UL);
+    }
+
+  if (NULL != tz)
+    {
+      if (! tzflag)
+        {
+          _tzset ();
+          tzflag++;
+        }
+      tz->tz_minuteswest = _timezone / 60;
+      tz->tz_dsttime     = _daylight;
+    }
+
+  return 0;
+}
+#endif
+
 /**
  * gimp_image_metadata_save_filter:
  * @image:     The actually saved image
@@ -898,6 +953,19 @@ gimp_image_metadata_save_filter (GimpImage            *image,
       g_strfreev (iptc_data);
     }
 
+  if (support_exif)
+    {
+      /* Remove all old thumbnail metadata: third-party software may have
+       * written tags we don't expect. */
+      gexiv2_metadata_try_erase_exif_thumbnail (new_g2metadata, &code_error);
+      if (code_error)
+        {
+          g_warning ("%s: failed to erase EXIF thumbnail: %s",
+                     G_STRFUNC, code_error->message);
+          g_clear_error (&code_error);
+        }
+    }
+
   if (flags & GIMP_METADATA_SAVE_THUMBNAIL && support_exif)
     {
       GdkPixbuf *thumb_pixbuf;
@@ -1016,17 +1084,6 @@ gimp_image_metadata_save_filter (GimpImage            *image,
         }
 
       g_object_unref (thumb_pixbuf);
-    }
-  else
-    {
-      /* Remove Thumbnail */
-      gexiv2_metadata_try_erase_exif_thumbnail (new_g2metadata, &code_error);
-      if (code_error)
-        {
-          g_warning ("%s: failed to erase EXIF thumbnail: %s\n",
-                     G_STRFUNC, code_error->message);
-          g_clear_error (&code_error);
-        }
     }
 
   if (flags & GIMP_METADATA_SAVE_COLOR_PROFILE)

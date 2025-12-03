@@ -329,6 +329,7 @@ EXPORTS
 	gimp_file_procedure_get_format_name
 	gimp_file_procedure_get_handles_remote
 	gimp_file_procedure_get_magics
+	gimp_file_procedure_get_meta
 	gimp_file_procedure_get_mime_types
 	gimp_file_procedure_get_prefixes
 	gimp_file_procedure_get_priority
@@ -337,6 +338,7 @@ EXPORTS
 	gimp_file_procedure_set_format_name
 	gimp_file_procedure_set_handles_remote
 	gimp_file_procedure_set_magics
+	gimp_file_procedure_set_meta
 	gimp_file_procedure_set_mime_types
 	gimp_file_procedure_set_prefixes
 	gimp_file_procedure_set_priority
@@ -577,6 +579,9 @@ EXPORTS
 	gimp_image_undo_is_enabled
 	gimp_image_undo_thaw
 	gimp_image_unset_active_channel
+	gimp_images_close_popup
+	gimp_images_popup
+	gimp_images_set_popup
 	gimp_item_attach_parasite
 	gimp_item_delete
 	gimp_item_detach_parasite
@@ -638,6 +643,9 @@ EXPORTS
 	gimp_item_transform_scale
 	gimp_item_transform_shear
 	gimp_item_transform_translate
+	gimp_items_close_popup
+	gimp_items_popup
+	gimp_items_set_popup
 	gimp_layer_add_alpha
 	gimp_layer_add_mask
 	gimp_layer_color_space_get_type
@@ -681,12 +689,10 @@ EXPORTS
 	gimp_layer_set_offsets
 	gimp_layer_set_opacity
 	gimp_layer_set_show_mask
-	gimp_link_layer_discard
 	gimp_link_layer_get_by_id
 	gimp_link_layer_get_file
 	gimp_link_layer_get_mime_type
 	gimp_link_layer_get_type
-	gimp_link_layer_monitor
 	gimp_link_layer_new
 	gimp_link_layer_set_file
 	gimp_list_images
@@ -739,6 +745,7 @@ EXPORTS
 	gimp_param_palette_get_type
 	gimp_param_path_get_type
 	gimp_param_pattern_get_type
+	gimp_param_rasterizable_get_type
 	gimp_param_resource_get_type
 	gimp_param_selection_get_type
 	gimp_param_spec_brush
@@ -762,6 +769,7 @@ EXPORTS
 	gimp_param_spec_palette
 	gimp_param_spec_path
 	gimp_param_spec_pattern
+	gimp_param_spec_rasterizable
 	gimp_param_spec_resource
 	gimp_param_spec_resource_defaults_to_context
 	gimp_param_spec_resource_none_allowed
@@ -1003,6 +1011,10 @@ EXPORTS
 	gimp_progress_uninstall
 	gimp_progress_update
 	gimp_quit
+	gimp_rasterizable_get_type
+	gimp_rasterizable_is_rasterized
+	gimp_rasterizable_rasterize
+	gimp_rasterizable_restore
 	gimp_resource_delete
 	gimp_resource_duplicate
 	gimp_resource_get_by_id
@@ -1107,11 +1119,11 @@ EXPORTS
 	gimp_unit_new
 	gimp_update_metadata
 	gimp_user_time
-	gimp_vector_layer_discard
 	gimp_vector_layer_get_by_id
 	gimp_vector_layer_get_enable_fill
 	gimp_vector_layer_get_enable_stroke
 	gimp_vector_layer_get_fill_color
+	gimp_vector_layer_get_fill_pattern
 	gimp_vector_layer_get_path
 	gimp_vector_layer_get_stroke_cap_style
 	gimp_vector_layer_get_stroke_color
@@ -1119,6 +1131,7 @@ EXPORTS
 	gimp_vector_layer_get_stroke_dash_pattern
 	gimp_vector_layer_get_stroke_join_style
 	gimp_vector_layer_get_stroke_miter_limit
+	gimp_vector_layer_get_stroke_pattern
 	gimp_vector_layer_get_stroke_width
 	gimp_vector_layer_get_stroke_width_unit
 	gimp_vector_layer_get_type

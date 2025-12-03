@@ -44,6 +44,8 @@
  * process to pop up a drawable selection dialog.
  *
  * Since: 3.0
+ *
+ * Deprecated: 3.2: Use GimpItemChooser.
  **/
 
 #define CELL_SIZE 40
@@ -253,7 +255,7 @@ gimp_drawable_chooser_dispose (GObject *object)
 
   if (chooser->callback)
     {
-      gimp_drawables_close_popup (chooser->callback);
+      gimp_items_close_popup (chooser->callback);
 
       gimp_plug_in_remove_temp_procedure (gimp_get_plug_in (), chooser->callback);
       g_clear_pointer (&chooser->callback, g_free);
@@ -296,7 +298,10 @@ gimp_drawable_chooser_set_property (GObject      *object,
       g_return_if_fail (g_value_get_object (gvalue) == NULL ||
                         g_type_is_a (G_TYPE_FROM_INSTANCE (g_value_get_object (gvalue)),
                                      chooser->drawable_type));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
       gimp_drawable_chooser_set_drawable (chooser, g_value_get_object (gvalue));
+#pragma GCC diagnostic pop
       break;
 
     case PROP_DRAWABLE_TYPE:
@@ -358,6 +363,8 @@ gimp_drawable_chooser_get_property (GObject    *object,
  * Returns: A [class@GimpUi.DrawableChooser.
  *
  * Since: 3.0
+ *
+ * Deprecated: 3.2: Use gimp_item_chooser_new().
  */
 GtkWidget *
 gimp_drawable_chooser_new (const gchar  *title,
@@ -394,6 +401,8 @@ gimp_drawable_chooser_new (const gchar  *title,
  * Returns: (transfer none): an internal copy of the drawable which must not be freed.
  *
  * Since: 3.0
+ *
+ * Deprecated: 3.2: Use gimp_item_chooser_get_item().
  */
 GimpDrawable *
 gimp_drawable_chooser_get_drawable (GimpDrawableChooser *chooser)
@@ -412,6 +421,8 @@ gimp_drawable_chooser_get_drawable (GimpDrawableChooser *chooser)
  * This will select the drawable in both the button and any chooser popup.
  *
  * Since: 3.0
+ *
+ * Deprecated: 3.2: Use gimp_item_chooser_set_item().
  */
 void
 gimp_drawable_chooser_set_drawable (GimpDrawableChooser *chooser,
@@ -423,7 +434,7 @@ gimp_drawable_chooser_set_drawable (GimpDrawableChooser *chooser,
   chooser->drawable = drawable;
 
   if (chooser->callback)
-    gimp_drawables_set_popup (chooser->callback, chooser->drawable);
+    gimp_items_set_popup (chooser->callback, GIMP_ITEM (chooser->drawable));
 
   g_object_notify_by_pspec (G_OBJECT (chooser), drawable_button_props[PROP_DRAWABLE]);
 
@@ -437,7 +448,10 @@ gimp_drawable_chooser_set_drawable (GimpDrawableChooser *chooser,
  * Returns the label widget.
  *
  * Returns: (transfer none): the [class@Gtk.Widget] showing the label text.
+ *
  * Since: 3.0
+ *
+ * Deprecated: 3.2: Use gimp_item_chooser_get_label().
  */
 GtkWidget *
 gimp_drawable_chooser_get_label (GimpDrawableChooser *chooser)
@@ -493,7 +507,7 @@ gimp_drawable_chooser_clicked (GimpDrawableChooser *chooser)
   if (chooser->callback)
     {
       /* Popup already created.  Calling setter raises the popup. */
-      gimp_drawables_set_popup (chooser->callback, chooser->drawable);
+      gimp_items_set_popup (chooser->callback, GIMP_ITEM (chooser->drawable));
     }
   else
     {
@@ -524,8 +538,8 @@ gimp_drawable_chooser_clicked (GimpDrawableChooser *chooser)
       g_object_unref (callback_procedure);
       g_free (callback_name);
 
-      if (gimp_drawables_popup (gimp_procedure_get_name (callback_procedure), chooser->title,
-                                g_type_name (chooser->drawable_type), chooser->drawable, handle))
+      if (gimp_items_popup (gimp_procedure_get_name (callback_procedure), chooser->title,
+                            g_type_name (chooser->drawable_type), GIMP_ITEM (chooser->drawable), handle))
         {
           /* Allow callbacks to be watched */
           gimp_plug_in_persistent_enable (plug_in);
@@ -538,7 +552,7 @@ gimp_drawable_chooser_clicked (GimpDrawableChooser *chooser)
           gimp_plug_in_remove_temp_procedure (plug_in, gimp_procedure_get_name (callback_procedure));
           return;
         }
-      gimp_drawables_set_popup (chooser->callback, chooser->drawable);
+      gimp_items_set_popup (chooser->callback, GIMP_ITEM (chooser->drawable));
     }
 }
 

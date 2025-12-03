@@ -31,6 +31,27 @@
 #include "gimpmybrushoptions.h"
 #include "gimpmybrushsurface.h"
 
+#define SPECTRAL_BAND 10
+
+static void 
+gimp_rgb_to_spectral(float r, float g, float b, float out[SPECTRAL_BAND])
+{
+    /* Dummy implementation, replace with real spectral conversion */
+  out[0] = r;
+  out[1] = g;
+  out[2] = b;
+  for (int i = 3; i < SPECTRAL_BAND; i++)
+    out[i] = 0.0f;
+}
+
+static void 
+gimp_spectral_to_rgb(const float in[SPECTRAL_BAND], float* r, float* g, float* b)
+{
+  /* Dummy implementation, replace with real spectral conversion */
+  *r = in[0];
+  *g = in[1];
+  *b = in[2];
+}
 
 struct _GimpMybrushSurface
 {
@@ -264,6 +285,8 @@ gimp_mypaint_surface_get_color_2 (MyPaintSurface2 *base_surface,
     float sum_b = 0.0f;
     float sum_a = 0.0f;
 
+    float sum_spec[SPECTRAL_BAND] = { 0.0f };
+
      /* Read in clamp mode to avoid transparency bleeding in at the edges */
     GeglBufferIterator *iter = gegl_buffer_iterator_new (surface->buffer, &dabRect, 0,
                                                          babl_format ("R'aG'aB'aA float"),
@@ -310,6 +333,25 @@ gimp_mypaint_surface_get_color_2 (MyPaintSurface2 *base_surface,
                 sum_a += pixel_weight * pixel[ALPHA];
                 sum_weight += pixel_weight;
 
+                /* Spectral support if paint > 0 and alpha > 0 */
+
+                if (paint > 0.0f && pixel_weight > 0.0f && pixel[ALPHA] > 0.0f)
+                  {
+                    float pigment_red = pixel[RED] / pixel[ALPHA];
+                    float pigment_green = pixel[GREEN] / pixel[ALPHA];
+                    float pigment_blue = pixel[BLUE] / pixel[ALPHA];
+
+                    float spec[SPECTRAL_BAND];
+
+                    gimp_rgb_to_spectral (pigment_red, pigment_green, pigment_blue, spec);
+
+                    for (int i = 0; i < SPECTRAL_BAND; i++)
+                      {
+                        sum_spec[i] += pixel_weight * spec[i];
+                      }
+
+                }
+
                 pixel += 4;
                 if (mask)
                   mask += 1;
@@ -319,6 +361,8 @@ gimp_mypaint_surface_get_color_2 (MyPaintSurface2 *base_surface,
 
     if (sum_a > 0.0f && sum_weight > 0.0f)
       {
+
+        /* Legacy RGB average */
         sum_r /= sum_weight;
         sum_g /= sum_weight;
         sum_b /= sum_weight;
@@ -326,7 +370,22 @@ gimp_mypaint_surface_get_color_2 (MyPaintSurface2 *base_surface,
 
         sum_r /= sum_a;
         sum_g /= sum_a;
-        sum_b /= sum_a;
+        sum_b /= sum_a
+
+        /*Blend the RGB average with the spectral average*/
+        if (paint > 0.0f)
+          {
+            float spec_avg[SPECTRAL_BAND];
+            float pigment_rgb[3];
+            for (int i = 0; i < SPECTRAL_BAND; i++)
+              {
+                spec_avg[i] = sum_spec[i] / sum_weight;
+              }
+            gimp_spectral_to_rgb (spec_avg, &pigment_rgb[0], &pigment_rgb[1], &pigment_rgb[2]);
+            spec_r = (1.0f - paint) * spec_r + paint * pigment_rgb[0];
+            spec_g = (1.0f - paint) * spec_g + paint * pigment_rgb[1];
+            spec_b = (1.0f - paint) * spec_b + paint * pigment_rgb[2];
+          }
 
         /* FIXME: Clamping is wrong because GEGL allows alpha > 1, this should probably re-multipy things */
         *color_r = CLAMP(sum_r, 0.0f, 1.0f);

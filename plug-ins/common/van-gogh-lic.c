@@ -195,8 +195,8 @@ lic_create_procedure (GimpPlugIn  *plug_in,
                                           G_PARAM_READWRITE);
 
       gimp_procedure_add_double_argument (procedure, "noise-magnitude",
-                                          _("_Noise Magnitude"),
-                                          _("Noise Magnitude"),
+                                          _("_Noise magnitude"),
+                                          _("Noise magnitude"),
                                           1.0, 5.0, 2.0,
                                           G_PARAM_READWRITE);
 
@@ -914,16 +914,19 @@ create_main_dialog (GimpProcedure       *procedure,
                                       GIMP_PROCEDURE_CONFIG (config),
                                       _("Van Gogh (LIC)"));
 
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "filter-length", 1.0);
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "noise-magnitude", 1.0);
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "integration-steps", 1.0);
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "min-value", 1.0);
-  gimp_procedure_dialog_get_scale_entry (GIMP_PROCEDURE_DIALOG (dialog),
-                                         "max-value", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "filter-length", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "noise-magnitude", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "integration-steps", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "min-value", 1.0);
+  gimp_procedure_dialog_get_spin_scale (GIMP_PROCEDURE_DIALOG (dialog),
+                                        "max-value", 1.0);
+
+  chooser = gimp_procedure_dialog_get_widget (GIMP_PROCEDURE_DIALOG (dialog),
+                                              "effect-image", GIMP_TYPE_ITEM_CHOOSER);
 
   gimp_procedure_dialog_fill (GIMP_PROCEDURE_DIALOG (dialog), NULL);
 
@@ -931,10 +934,7 @@ create_main_dialog (GimpProcedure       *procedure,
 
   /* TODO: Currently we can't serialize GimpDrawable parameters, so this sets
    * the parameter to the current image as a default value */
-  chooser = gimp_procedure_dialog_get_widget (GIMP_PROCEDURE_DIALOG (dialog),
-                                              "effect-image", G_TYPE_NONE);
-  gimp_drawable_chooser_set_drawable (GIMP_DRAWABLE_CHOOSER (chooser),
-                                      drawable);
+  gimp_item_chooser_set_item (GIMP_ITEM_CHOOSER (chooser), GIMP_ITEM (drawable));
 
   run = gimp_procedure_dialog_run (GIMP_PROCEDURE_DIALOG (dialog));
 

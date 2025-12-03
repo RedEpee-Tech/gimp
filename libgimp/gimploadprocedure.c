@@ -145,8 +145,9 @@ static void
 gimp_load_procedure_install (GimpProcedure *procedure)
 {
   GimpLoadProcedurePrivate *priv;
-  GimpLoadProcedure        *load_proc = GIMP_LOAD_PROCEDURE (procedure);
-  GimpFileProcedure        *file_proc = GIMP_FILE_PROCEDURE (procedure);
+  GimpLoadProcedure        *load_proc       = GIMP_LOAD_PROCEDURE (procedure);
+  GimpFileProcedure        *file_proc       = GIMP_FILE_PROCEDURE (procedure);
+  const gchar              *meta_extensions = NULL;
   const gchar              *mime_types;
   gint                      priority;
 
@@ -154,8 +155,10 @@ gimp_load_procedure_install (GimpProcedure *procedure)
 
   GIMP_PROCEDURE_CLASS (parent_class)->install (procedure);
 
+  (void) gimp_file_procedure_get_meta (file_proc, &meta_extensions),
   _gimp_pdb_set_file_proc_load_handler (gimp_procedure_get_name (procedure),
                                         gimp_file_procedure_get_extensions (file_proc),
+                                        meta_extensions,
                                         gimp_file_procedure_get_prefixes (file_proc),
                                         gimp_file_procedure_get_magics (file_proc));
 
@@ -283,6 +286,13 @@ gimp_load_procedure_run (GimpProcedure        *procedure,
 
   if (image != NULL && metadata != NULL && flags != GIMP_METADATA_LOAD_NONE)
     _gimp_image_metadata_load_finish (image, NULL, metadata, flags);
+
+  if (image)
+    {
+      gimp_image_clean_all (image);
+      gimp_image_undo_disable (image);
+      gimp_image_undo_enable (image);
+    }
 
   /* This is debug printing to help plug-in developers figure out best
    * practices.

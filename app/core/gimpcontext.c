@@ -2234,9 +2234,11 @@ gimp_context_real_set_tool (GimpContext  *context,
     }
 
   if (context->tool_info)
-    g_signal_handlers_disconnect_by_func (context->tool_info,
-                                          gimp_context_tool_dirty,
-                                          context);
+    {
+      g_signal_handlers_disconnect_by_func (context->tool_info,
+                                            G_CALLBACK (gimp_context_tool_dirty),
+                                            context);
+    }
 
   g_set_object (&context->tool_info, tool_info);
 

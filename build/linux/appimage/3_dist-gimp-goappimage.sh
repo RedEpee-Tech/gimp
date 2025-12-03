@@ -510,7 +510,7 @@ printf "(INFO): configuring $APP_ID.appdata.xml\n"
 find "$USR_DIR/share/metainfo" \( -iname *.appdata.xml -and ! -iname $APP_ID*.appdata.xml \) -execdir mv "{}" $APP_ID.appdata.xml \;
 sed -i "s/org.gimp.GIMP</${APP_ID}</g" "$USR_DIR/share/metainfo/${APP_ID}.appdata.xml"
 sed -i "s/gimp.desktop/${APP_ID}.desktop/g" "$USR_DIR/share/metainfo/${APP_ID}.appdata.xml"
-sed -i "s/date=\"TODO\"/date=\"`date --iso-8601`\"/" "$USR_DIR/share/metainfo/${APP_ID}.appdata.xml"
+sed -i "/<release[^>]*date=\"TODO\"[^>]*>/,/<\/release>/d" "$USR_DIR/share/metainfo/${APP_ID}.appdata.xml"
 printf "\e[0Ksection_end:`date +%s`:${ARCH}_source\r\e[0K\n"
 
 

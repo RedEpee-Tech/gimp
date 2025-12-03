@@ -98,11 +98,10 @@ with open("config.h") as file:
 ### Needed to not pollute output. See: https://gitlab.gnome.org/GNOME/gimp/-/issues/8877
 bundle(MSYSTEM_PREFIX, "bin/gdbus.exe")
 ### Needed for hyperlink support etc... See: https://gitlab.gnome.org/GNOME/gimp/-/issues/12288
-####...when running from `gimp*.exe --verboses`
+####...when running from `gimp*.exe` on console
 bundle(MSYSTEM_PREFIX, "bin/gspawn*-console.exe")
-if not os.getenv("GIMP_UNSTABLE") and os.getenv("GIMP_RELEASE"):
-  ####...when running from `gimp*.exe`
-  bundle(MSYSTEM_PREFIX, "bin/gspawn*-helper.exe")
+####...when running from `gimp*.exe` from shortcut
+bundle(MSYSTEM_PREFIX, "bin/gspawn*-helper.exe")
 ### Needed for file dialogs (only .compiled file is needed on MS Windows)
 bundle(MSYSTEM_PREFIX, "share/glib-*/schemas/gschemas.compiled")
 ### Needed to open remote files
@@ -158,11 +157,10 @@ if (os.getenv("GIMP_UNSTABLE") or not os.getenv("GIMP_RELEASE")) and "32" not in
 bundle(GIMP_PREFIX, "lib/girepository-*/*.typelib")
 bundle(MSYSTEM_PREFIX, "bin/libgirepository-*.dll")
 #### Python support
-#####python.exe is needed for plug-ins output in `gimp-console*.exe`
+#####python.exe is needed for plug-ins error output if `gimp*.exe` is run from console
 bundle(MSYSTEM_PREFIX, "bin/python.exe")
-if not os.getenv("GIMP_UNSTABLE") and os.getenv("GIMP_RELEASE"):
-  #####pythonw.exe is needed to run plug-ins silently in `gimp*.exe`
-  bundle(MSYSTEM_PREFIX, "bin/pythonw.exe")
+#####pythonw.exe is needed to run plug-ins silently if `gimp*.exe` is run from shortcut
+bundle(MSYSTEM_PREFIX, "bin/pythonw.exe")
 bundle(MSYSTEM_PREFIX, "lib/python*")
 clean(GIMP_DISTRIB, "lib/python*/*.pyc")
 #####Needed for internet connection on python. See: https://gitlab.gnome.org/GNOME/gimp/-/issues/14722

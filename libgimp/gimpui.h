@@ -35,7 +35,9 @@
 #include <libgimp/gimpdrawablepreview.h>
 #include <libgimp/gimpfontchooser.h>
 #include <libgimp/gimpgradientchooser.h>
+#include <libgimp/gimpimagechooser.h>
 #include <libgimp/gimpimagecombobox.h>
+#include <libgimp/gimpitemchooser.h>
 #include <libgimp/gimpitemcombobox.h>
 #include <libgimp/gimppalettechooser.h>
 #include <libgimp/gimppatternchooser.h>

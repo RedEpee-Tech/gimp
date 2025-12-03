@@ -52,21 +52,33 @@ $env:PATH = "${win_sdk_path}bin\${win_sdk_version}.0\$cpu_arch;${win_sdk_path}Ap
 ## msstore-cli (ONLY FOR RELEASES)
 if ("$CI_COMMIT_TAG" -eq (git describe --all | Foreach-Object {$_ -replace 'tags/',''}))
   {
+    #.NET runtime required by msstore-cli (and its PowerShell counterpart)
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $msstore_tag = (Invoke-WebRequest https://api.github.com/repos/microsoft/msstore-cli/releases | ConvertFrom-Json)[0].tag_name
-    
-    #.NET runtime required by msstore-cli
-    $xmlObject = New-Object XML
-    $xmlObject.Load("https://raw.githubusercontent.com/microsoft/msstore-cli/refs/heads/rel/$msstore_tag/MSStore.API/MSStore.API.csproj")
-    $dotnet_major = ($xmlObject.Project.PropertyGroup.TargetFramework | Out-String) -replace "`r`n",'' -replace 'net',''
-    $dotnet_tag = ((Invoke-WebRequest https://api.github.com/repos/dotnet/runtime/releases | ConvertFrom-Json).tag_name | Select-String "$dotnet_major" | Select-Object -First 1).ToString() -replace 'v',''
-    if (-not (Test-Path "$Env:ProgramFiles\dotnet\shared\Microsoft.NETCore.App\$dotnet_major*\"))
+    $msstore_tag = (Invoke-WebRequest https://api.github.com/repos/microsoft/msstore-cli/releases/latest | ConvertFrom-Json).tag_name
+    $dotnet_msstore = ([xml](Invoke-WebRequest "https://raw.githubusercontent.com/microsoft/msstore-cli/refs/heads/rel/$msstore_tag/MSStore.API/MSStore.API.csproj").Content).Project.PropertyGroup.TargetFramework
+    $powershell_tag = (Invoke-WebRequest https://api.github.com/repos/PowerShell/PowerShell/releases/latest | ConvertFrom-Json).tag_name
+    $dotnet_powershell = ([xml](Invoke-WebRequest "https://raw.githubusercontent.com/PowerShell/PowerShell/refs/tags/$powershell_tag/PowerShell.Common.props").Content).Project.PropertyGroup.TargetFramework
+    foreach ($dotnet in $dotnet_msstore, $dotnet_powershell)
       {
-        Write-Output "(INFO): downloading .NET v$dotnet_tag"
-        Invoke-WebRequest https://aka.ms/dotnet/$dotnet_major/dotnet-runtime-win-$cpu_arch.zip -OutFile ${PARENT_DIR}dotnet-runtime.zip
-        Expand-Archive ${PARENT_DIR}dotnet-runtime.zip ${PARENT_DIR}dotnet-runtime -Force
-        $env:PATH = "$(Resolve-Path $PWD\${PARENT_DIR}dotnet-runtime);" + $env:PATH
-        $env:DOTNET_ROOT = "$(Resolve-Path $PWD\${PARENT_DIR}dotnet-runtime)"
+        $dotnet_major = ($dotnet | Out-String) -replace "`r`n",'' -replace 'net',''
+        $dotnet_tag = ((Invoke-WebRequest https://api.github.com/repos/dotnet/runtime/releases | ConvertFrom-Json).tag_name | Select-String "$dotnet_major" | Select-Object -First 1).ToString() -replace 'v',''
+        if (-not (Test-Path "$Env:ProgramFiles\dotnet\shared\Microsoft.NETCore.App\$dotnet_major*\") -and -not (Test-Path "${PARENT_DIR}dotnet-runtime-${dotnet_major}"))
+          {
+            Write-Output "(INFO): downloading .NET v$dotnet_tag"
+            Invoke-WebRequest https://aka.ms/dotnet/$dotnet_major/dotnet-runtime-win-$cpu_arch.zip -OutFile ${PARENT_DIR}dotnet-runtime-${dotnet_major}.zip
+            Expand-Archive ${PARENT_DIR}dotnet-runtime-${dotnet_major}.zip ${PARENT_DIR}dotnet-runtime-${dotnet_major} -Force
+            $env:PATH = "$(Resolve-Path $PWD\${PARENT_DIR}dotnet-runtime-${dotnet_major});" + $env:PATH
+            $env:DOTNET_ROOT = "$(Resolve-Path $PWD\${PARENT_DIR}dotnet-runtime-${dotnet_major})"
+          }
+      }
+
+    #powershell required by msstore-cli. See: https://github.com/microsoft/msstore-cli/issues/70
+    if (-not (Test-Path Registry::'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\App Paths\pwsh.exe') -and $PSVersionTable.PSVersion.Major -lt 6)
+      {
+        Write-Output "(INFO): downloading PowerShell $powershell_tag"
+        Invoke-WebRequest https://github.com/PowerShell/PowerShell/releases/download/$powershell_tag/PowerShell-$($powershell_tag -replace 'v','')-win-$cpu_arch.zip -OutFile ${PARENT_DIR}PowerShell.zip
+        Expand-Archive ${PARENT_DIR}PowerShell.zip ${PARENT_DIR}PowerShell -Force
+        $env:PATH = "$(Resolve-Path $PWD\${PARENT_DIR}PowerShell);" + $env:PATH
       }
 
     #msstore-cli itself
@@ -223,7 +235,7 @@ foreach ($bundle in $supported_archs)
     conf_manifest 'neutral' "$msix_arch"
     ### Set Identity Name
     conf_manifest '@IDENTITY_NAME@' "$IDENTITY_NAME"
-    ### Set Display Name (the name shown in MS Store)
+    ### Set Display Name (the name shown in MS Store, on Start Menu etc)
     if (-not $GIMP_RELEASE -or $GIMP_IS_RC_GIT)
       {
         $display_name='GIMP (Insider)'
@@ -241,12 +253,6 @@ foreach ($bundle in $supported_archs)
     conf_manifest '@CUSTOM_GIMP_VERSION@' "$CUSTOM_GIMP_VERSION"
     ### Set some things based on GIMP mutex version (major.minor or major)
     conf_manifest '@GIMP_MUTEX_VERSION@' "$GIMP_MUTEX_VERSION"
-    #### Needed to differentiate on Start Menu etc 
-    if (-not $GIMP_RELEASE -or $GIMP_IS_RC_GIT)
-      {
-        $channel_suffix=" (Insider)"
-      }
-    conf_manifest '@CHANNEL_SUFFIX@' "$channel_suffix"
     #### Needed to differentiate on PowerShell etc
     if ($GIMP_RELEASE -and -not $GIMP_IS_RC_GIT)
       {
@@ -467,24 +473,24 @@ if ("$CI_COMMIT_TAG" -eq (git describe --all | Foreach-Object {$_ -replace 'tags
     ## Needed credentials for submission
     ### Connect with our Microsoft Entra credentials (stored on GitLab)
     ### (The last one can be revoked at any time in MS Entra Admin center)
-    msstore reconfigure --tenantId $TENANT_ID --sellerId $SELLER_ID --clientId $CLIENT_ID --clientSecret $CLIENT_SECRET
+    msstore reconfigure --tenantId $TENANT_ID --sellerId $SELLER_ID --clientId $CLIENT_ID --clientSecret $CLIENT_SECRET; if ("$LASTEXITCODE" -gt '0') { exit 1 }
     ### Set product_id (which is not confidential) needed by HTTP calls of some commands
     if ($GIMP_UNSTABLE -or $GIMP_RC_VERSION)
       {
-        $PRODUCT_ID="9NZVDVP54JMR"
+        $env:PRODUCT_ID="9NZVDVP54JMR"
       }
     else
       {
-        $PRODUCT_ID="9PNSJCLXDZ0V"
+        $env:PRODUCT_ID="9PNSJCLXDZ0V"
       }
 
     ## Create submission and upload .msixupload file to it
-    msstore publish $OUTPUT_DIR\$MSIX_ARTIFACT -id $PRODUCT_ID -nc
+    msstore publish $OUTPUT_DIR\$MSIX_ARTIFACT -id $env:PRODUCT_ID -nc; if ("$LASTEXITCODE" -gt '0') { exit 1 }
 
-    ## Update submission info (if PS6 or up. See: https://github.com/microsoft/msstore-cli/issues/70)
-    if ($PSVersionTable.PSVersion.Major -ge 6)
+    ## Update submission info (if PS6 or up. Check the section 1 of this script)
+    pwsh -Command `
       {
-        $jsonObject = msstore submission get $PRODUCT_ID | ConvertFrom-Json -AsHashtable
+        $jsonObject = msstore submission get $env:PRODUCT_ID | ConvertFrom-Json -AsHashtable; if ("$LASTEXITCODE" -gt '0') { exit 1 }
         ###Get changelog from Linux appdata
         $xmlObject = New-Object XML
         $xmlObject.Load("$PWD\desktop\org.gimp.GIMP.appdata.xml.in.in")
@@ -493,13 +499,14 @@ if ("$CI_COMMIT_TAG" -eq (git describe --all | Foreach-Object {$_ -replace 'tags
             Write-Host "(ERROR): appdata does not match main meson file. Submission can't be done." -ForegroundColor red
             exit 1
           }
-        $store_changelog = ($xmlObject.component.releases.release[0].description.SelectNodes(".//p | .//li") | ForEach-Object { $text = ($_.InnerText).Trim() -replace '\s*\r?\n\s*', ' '; if ($_.Name -eq 'li') { "- $text" } else { $text } } ) -join "`n"
-        $jsonObject."Listings"."en-us"."BaseListing".'ReleaseNotes' = "$store_changelog"
+        $jsonObject."Listings"."en-us"."BaseListing".'ShortDescription' = ($xmlObject.component.summary).Trim()
+        $jsonObject."Listings"."en-us"."BaseListing".'Description' = ($xmlObject.component.description.SelectNodes(".//p") | ForEach-Object { ($_.InnerText).Trim() -replace '\s*\r?\n\s*', ' ' } ) -join "`n`n"
+        $jsonObject."Listings"."en-us"."BaseListing".'ReleaseNotes' = ($xmlObject.component.releases.release[0].description.SelectNodes(".//p | .//li") | ForEach-Object { $text = ($_.InnerText).Trim() -replace '\s*\r?\n\s*', ' '; if ($_.Name -eq 'li') { "- $text" } else { $text } } ) -join "`n"
         ###Send submission info
-        msstore submission updateMetadata $PRODUCT_ID ($jsonObject | ConvertTo-Json -Depth 100)
+        msstore submission updateMetadata $env:PRODUCT_ID ($jsonObject | ConvertTo-Json -Depth 100); if ("$LASTEXITCODE" -gt '0') { exit 1 }
       }
 
     ## Start certification then publishing
-    msstore submission publish $PRODUCT_ID
+    msstore submission publish $env:PRODUCT_ID; if ("$LASTEXITCODE" -gt '0') { exit 1 }
     Write-Output "$([char]27)[0Ksection_end:$(Get-Date -UFormat %s -Millisecond 0):msix_submission$([char]13)$([char]27)[0K"
   }

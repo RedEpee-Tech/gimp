@@ -38,9 +38,15 @@
 #include "core/gimpdrawable.h"
 #include "core/gimpdrawable-filters.h"
 #include "core/gimpdrawablefilter.h"
+#include "core/gimplinklayer.h"
 #include "core/gimplist.h"
+#include "core/gimprasterizable.h"
 #include "core/gimpimage.h"
 #include "core/gimpimage-undo-push.h"
+
+#include "path/gimpvectorlayer.h"
+
+#include "text/gimptextlayer.h"
 
 #include "tools/tool_manager.h" /* FIXME */
 
@@ -461,9 +467,47 @@ gimp_drawable_filters_editor_set_sensitive (GimpDrawableTreeView *view)
       gtk_widget_set_sensitive (editor->lower_button,
                                 index < last_editable);
       gtk_widget_set_sensitive (editor->merge_button,
-                                ! is_group);
+                                ! is_group &&
+                                (! GIMP_IS_RASTERIZABLE (editor->drawable) ||
+                                 gimp_rasterizable_is_rasterized (GIMP_RASTERIZABLE (editor->drawable))));
       gtk_widget_set_sensitive (editor->remove_button,
                                 is_editable);
+
+      if (is_group                                 ||
+          (GIMP_IS_RASTERIZABLE (editor->drawable) &&
+          ! gimp_rasterizable_is_rasterized (GIMP_RASTERIZABLE (editor->drawable))))
+        {
+          const gchar *disabled_reason;
+          gchar       *tooltip;
+
+          if (gimp_item_is_vector_layer (GIMP_ITEM (editor->drawable)))
+            disabled_reason = _("Disabled because filters cannot be merged "
+                                "on vector layers.");
+          else if (gimp_item_is_link_layer (GIMP_ITEM (editor->drawable)))
+            disabled_reason = _("Disabled because filters cannot be merged "
+                                "on link layers.");
+          else if (gimp_item_is_text_layer (GIMP_ITEM (editor->drawable)))
+            disabled_reason = _("Disabled because filters cannot be merged "
+                                "on text layers.");
+          else
+            /* TODO: Translate after string freeze */
+            disabled_reason = "Disabled because filters cannot be merged "
+                              "on group layers.";
+
+          tooltip = g_strdup_printf ("%s\n<i>%s</i>",
+                                     _("Merge all active filters down."),
+                                     disabled_reason);
+
+          gimp_help_set_help_data_with_markup (editor->merge_button, tooltip,
+                                               GIMP_HELP_LAYER_EFFECTS);
+          g_free (tooltip);
+        }
+      else
+        {
+          gimp_help_set_help_data (editor->merge_button,
+                                   _("Merge all active filters down."),
+                                   GIMP_HELP_LAYER_EFFECTS);
+        }
     }
 }
 

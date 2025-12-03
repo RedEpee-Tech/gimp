@@ -68,6 +68,7 @@
 #include "core/gimpparasitelist.h"
 #include "core/gimppattern.h"
 #include "core/gimpprogress.h"
+#include "core/gimprasterizable.h"
 #include "core/gimpselection.h"
 #include "core/gimpstrokeoptions.h"
 #include "core/gimpsymmetry.h"
@@ -375,28 +376,32 @@ xcf_load_image (Gimp     *gimp,
                                        "image-simulation-intent");
   if (parasite)
     {
-      guint32           parasite_size;
-      const guint8     *intent;
-      GimpImagePrivate *private = GIMP_IMAGE_GET_PRIVATE (image);
+      guint32                   parasite_size;
+      GimpImagePrivate         *private = GIMP_IMAGE_GET_PRIVATE (image);
+      const guint8             *data;
+      GimpColorRenderingIntent  intent;
 
-      intent = (const guint8 *) gimp_parasite_get_data (parasite, &parasite_size);
+      data   = (const guint8 *) gimp_parasite_get_data (parasite, &parasite_size);
+      intent = (GimpColorRenderingIntent) *data;
+
+      gimp_parasite_list_remove (private->parasites,
+                                 gimp_parasite_get_name (parasite));
 
       if (parasite_size == 1)
         {
-          if (*intent != GIMP_COLOR_RENDERING_INTENT_PERCEPTUAL            &&
-              *intent != GIMP_COLOR_RENDERING_INTENT_RELATIVE_COLORIMETRIC &&
-              *intent != GIMP_COLOR_RENDERING_INTENT_SATURATION            &&
-              *intent != GIMP_COLOR_RENDERING_INTENT_ABSOLUTE_COLORIMETRIC)
+          if (intent != GIMP_COLOR_RENDERING_INTENT_PERCEPTUAL            &&
+              intent != GIMP_COLOR_RENDERING_INTENT_RELATIVE_COLORIMETRIC &&
+              intent != GIMP_COLOR_RENDERING_INTENT_SATURATION            &&
+              intent != GIMP_COLOR_RENDERING_INTENT_ABSOLUTE_COLORIMETRIC)
             {
               gimp_message (info->gimp, G_OBJECT (info->progress),
                             GIMP_MESSAGE_ERROR,
                             "Unknown simulation rendering intent: %d",
-                            *intent);
+                            intent);
             }
           else
             {
-              gimp_image_set_simulation_intent (image,
-                                                (GimpColorRenderingIntent) *intent);
+              gimp_image_set_simulation_intent (image, intent);
             }
         }
       else
@@ -405,30 +410,28 @@ xcf_load_image (Gimp     *gimp,
                         GIMP_MESSAGE_ERROR,
                         "Invalid simulation intent data");
         }
-
-      gimp_parasite_list_remove (private->parasites,
-                                 gimp_parasite_get_name (parasite));
     }
 
 
-/* check for simulation bpc parasite */
+  /* check for simulation bpc parasite */
   parasite = gimp_image_parasite_find (GIMP_IMAGE (image),
                                        "image-simulation-bpc");
   if (parasite)
     {
       guint32           parasite_size;
-      const guint8     *bpc;
-      gboolean          status  = FALSE;
       GimpImagePrivate *private = GIMP_IMAGE_GET_PRIVATE (image);
+      const guint8     *data;
+      gboolean          bpc;
 
-      bpc = (const guint8 *) gimp_parasite_get_data (parasite, &parasite_size);
+      data = (const guint8 *) gimp_parasite_get_data (parasite, &parasite_size);
+      bpc  = *data ? TRUE : FALSE;
+
+      gimp_parasite_list_remove (private->parasites,
+                                 gimp_parasite_get_name (parasite));
 
       if (parasite_size == 1)
         {
-          if (*bpc)
-            status = TRUE;
-
-          gimp_image_set_simulation_bpc (image, status);
+          gimp_image_set_simulation_bpc (image, bpc);
         }
       else
         {
@@ -436,9 +439,6 @@ xcf_load_image (Gimp     *gimp,
                         GIMP_MESSAGE_ERROR,
                         "Invalid simulation bpc data");
         }
-
-      gimp_parasite_list_remove (private->parasites,
-                                 gimp_parasite_get_name (parasite));
     }
 
   /* check for a GimpGrid parasite */
@@ -478,6 +478,9 @@ xcf_load_image (Gimp     *gimp,
           g_free (meta_string);
         }
 
+      gimp_parasite_list_remove (private->parasites,
+                                 gimp_parasite_get_name (parasite));
+
       if (metadata)
         {
           has_metadata = TRUE;
@@ -485,9 +488,6 @@ xcf_load_image (Gimp     *gimp,
           gimp_image_set_metadata (image, metadata, FALSE);
           g_object_unref (metadata);
         }
-
-      gimp_parasite_list_remove (private->parasites,
-                                 gimp_parasite_get_name (parasite));
     }
 
   /* check for symmetry parasites */
@@ -1021,7 +1021,9 @@ xcf_load_image (Gimp     *gimp,
                                           "vector-layer-options", options,
                                           NULL);
           g_object_unref (options);
-          GIMP_VECTOR_LAYER (vlayer)->modified = vdata->modified;
+
+          if (vdata->modified)
+            gimp_rasterizable_rasterize (GIMP_RASTERIZABLE (vlayer), FALSE);
 
           if (selected)
             {
@@ -4779,7 +4781,7 @@ xcf_load_parasite (XcfInfo *info)
       return NULL;
     }
 
-  if (!name)
+  if (! name || strlen (name) == 0)
     {
       g_printerr ("Parasite has no name! Possibly corrupt XCF file.\n");
       return NULL;

@@ -17,7 +17,7 @@ if not stable or not release or gimp_version.endswith('+git')
 endif
 
 
-executable_name = 'script-fu'
+plugin_name = 'script-fu'
 
 # script-fu.c registers registers many PDB procs in the PDB.
 # Several source files implement the PDB procedures of type PLUGIN, of similar names.
@@ -37,21 +37,28 @@ if not meson.is_cross_build()
     plugin_sources += windows.compile_resources(
       plugin_rc,
       args: [
-        '--define', 'ORIGINALFILENAME_STR="@0@"'.format(executable_name+'.exe'),
-        '--define', 'INTERNALNAME_STR="@0@"'    .format(executable_name),
-        '--define', 'TOP_SRCDIR="@0@"'          .format(meson.project_source_root()),
+        rc_define_flag, rc_define_fmt.format('ORIGINALFILENAME_STR', plugin_name+'.exe'),
+        rc_define_flag, rc_define_fmt.format('INTERNALNAME_STR', plugin_name),
       ],
       include_directories: [
         rootInclude, appInclude,
       ],
     )
 
-    # Fallback fix to the problem of non-configured interpreters
+    #.interp file read by gimp_interpreter_db_load_interp_file in gimpinterpreterdb.c
     scriptfu_config = configuration_data()
     scriptfu_config.set('SCRIPTFU_PATH', '')
     configure_file(
       input : 'gimp-script-fu-interpreter.interp.in',
       output: 'gimp-script-fu-interpreter.interp',
+      configuration: scriptfu_config,
+      install: true,
+      install_dir: gimpplugindir / 'interpreters',
+    )
+
+    configure_file(
+      input : 'gimp-script-fu-interpreter.interp.in',
+      output: 'gimp-script-fu-interpreter_win.interp',
       configuration: scriptfu_config,
       install: true,
       install_dir: gimpplugindir / 'interpreters',
@@ -62,7 +69,7 @@ if not meson.is_cross_build()
 
   # libscriptfu is installed to standard place; no rpath necessary
 
-  plugin_exe = executable(executable_name,
+  plugin_exe = executable(plugin_name,
                           plugin_sources,
                           dependencies: [
                             libgimpui_dep,
@@ -78,6 +85,6 @@ if not meson.is_cross_build()
                           link_with : [libscriptfuconsole, libscriptfu ],
                           win_subsystem: 'windows',
                           install: true,
-                          install_dir: gimpplugindir / 'plug-ins' / executable_name)
+                          install_dir: gimpplugindir / 'plug-ins' / plugin_name)
   plugin_executables += [plugin_exe.full_path()]
 endif

@@ -25,6 +25,8 @@
  * So we call instead a separate program, then exit.
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +36,9 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gi18n.h>
+#ifdef G_OS_WIN32
+#include <windows.h>
+#endif
 
 #include <gtk/gtk.h>
 
@@ -56,10 +61,26 @@ main (int    argc,
   gchar       *error;
   GtkWidget   *dialog;
 
+#ifdef G_OS_WIN32
+  if (AttachConsole (ATTACH_PARENT_PROCESS) != 0 && ! g_getenv ("TERM") && ! g_getenv ("SHELL"))
+    {
+      /* 'r' is needed to prevent interleaving and '+' to support colors */
+      freopen ("CONOUT$", "r+", stdout);
+      freopen ("CONOUT$", "r+", stderr);
+      _flushall ();
+
+      {
+        /* CTRL+C handling */
+        HANDLE hIn = GetStdHandle (STD_INPUT_HANDLE);
+        SetConsoleMode (hIn, ENABLE_PROCESSED_INPUT);
+      }
+    }
+#endif
+
   if (argc != 6 && argc != 8)
     {
-      g_print ("Usage: gimp-debug-tool-2.0 [PROGRAM] [PID] [REASON] [MESSAGE] [BT_FILE] "
-               "([LAST_VERSION] [RELEASE_TIMESTAMP])\n");
+      g_print ("Usage: gimp-debug-tool-%s [PROGRAM] [PID] [REASON] [MESSAGE] [BT_FILE] "
+               "([LAST_VERSION] [RELEASE_TIMESTAMP])\n", GIMP_APP_VERSION);
       exit (EXIT_FAILURE);
     }
 
@@ -100,3 +121,14 @@ main (int    argc,
 
   exit (EXIT_SUCCESS);
 }
+
+#ifdef G_OS_WIN32
+int WINAPI
+WinMain (HINSTANCE hInstance,
+         HINSTANCE hPrevInstance,
+         LPSTR     lpCmdLine,
+         int       nCmdShow)
+{
+  return main (__argc, __argv);
+}
+#endif

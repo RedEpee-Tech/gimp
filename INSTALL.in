@@ -7,12 +7,11 @@ There are some basic steps to building and installing GIMP.
 GIMP @GIMP_APP_VERSION@ replaces earlier GIMP versions. It is advised to uninstall
 them before installing GIMP @GIMP_APP_VERSION@. Since libgimp* libraries and data
 are all versioned anyway, it is possible to keep your older GIMP 2.x
-or 3.x installations in parallel to GIMP @GIMP_APP_VERSION@ on a same prefix.
+installation in parallel to GIMP @GIMP_APP_VERSION@ on a same prefix.
 
-GIMP @GIMP_APP_VERSION@ is not backward compatible with GIMP 2.10 and earlier
-versions. Plug-ins and scripts written for GIMP 2.10, 2.8, 2.6 or
-earlier GIMP 2.x versions will not work because the API changed in
-GIMP 3.0.
+GIMP @GIMP_APP_VERSION@ is not backward compatible with GIMP 2 and earlier versions.
+Plug-ins and scripts written for GIMP 2.10, 2.8, 2.6 or earlier GIMP 2.x versions
+will not work because the API changed in GIMP 3.0.
 
 The most important part is to make sure the requirements for a build
 are fulfilled. We depend on a number of tools and libraries which are
@@ -47,9 +46,8 @@ help in that regard:
   2. You need gettext version 0.19.8 or newer. Older versions did not have support yet
      for certain file formats.
 
-  3. You need to have GEGL version @GEGL_REQUIRED_VERSION@ or newer and babl version
-     @BABL_REQUIRED_VERSION@ or newer. You can get them from https://gegl.org/ or clone
-     them from the GNOME git repository:
+  3. You need to have GEGL version @GEGL_REQUIRED_VERSION@ or newer and babl version @BABL_REQUIRED_VERSION@
+     or newer. You can get them from https://gegl.org/ or clone them from the GNOME git repository:
 
        https://gitlab.gnome.org/GNOME/babl.git
        https://gitlab.gnome.org/GNOME/gegl.git
@@ -103,7 +101,8 @@ help in that regard:
   7. The file-compressor plug-in requires zlib, libbzip2, and liblzma to
      be installed. All these libraries are required dependencies.
 
-  8. For metadata access GIMP requires the gexiv2 @GEXIV2_REQUIRED_VERSION@ or newer library.
+  8. For metadata access, GIMP requires GExiv2 @GEXIV2_REQUIRED_VERSION@ or newer, but
+     below @GEXIV2_MAX_VERSION@ (as the API changed).
      It is hosted at: https://gitlab.gnome.org/GNOME/gexiv2/
 
   9. libpng, libjpeg, libtiff, librsvg and lcms are hard dependencies
@@ -221,20 +220,36 @@ help in that regard:
 
         https://github.com/jrfonseca/drmingw
 
- 17. Optional step if compiling GIMP from git (unneeded from tarball): you need
+ 17. When optional language selection is configured in (i.e. iso-codes
+     is found), GIMP will use language data not only at runtime, but
+     will also use this package to self-localize the list of supported
+     languages during build-time. It means that the build system must be
+     set up for localization. In particular the build system will either
+     need to be set to any locale other than C or POSIX (these 2 locales
+     block all localization attempts), or you will need to have at least
+     the en_US.UTF-8 locale installed.
+     The latter can be done with the following commands with root access:
+
+         echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen
+         locale-gen
+
+     If this locale is installed, our build script will try and set it
+     as temporary locale when current locale is C or POSIX.
+
+ 18. Optional step if compiling GIMP from git (unneeded from tarball): you need
      to initialize submodules with command `git submodule update --init`.
 
- 18. Configure GIMP by running `meson _build`. You may want to pass some
+ 19. Configure GIMP by running `meson _build`. You may want to pass some
      options to it, see below.
 
- 19. Build GIMP by running `ninja -C _build'.
+ 20. Build GIMP by running `ninja -C _build'.
 
- 20. Install GIMP by running `ninja -C _build install'. In order to
+ 21. Install GIMP by running `ninja -C _build install'. In order to
      avoid clashes with other versions of GIMP, we install a binary
      called gimp-@GIMP_APP_VERSION@. By default there's also a link created so that
      you can type 'gimp' to start gimp-@GIMP_APP_VERSION@.
 
- 21. Summary of required packages and what version you need:
+ 22. Summary of required packages and what version you need:
 
      Package Name         Version
 
@@ -246,7 +261,7 @@ help in that regard:
      freetype2            @FREETYPE2_REQUIRED_VERSION@
      GDK-PixBuf           @GDK_PIXBUF_REQUIRED_VERSION@
      GEGL                 @GEGL_REQUIRED_VERSION@
-     gexiv2               @GEXIV2_REQUIRED_VERSION@
+     gexiv2               @GEXIV2_REQUIRED_VERSION@ (< @GEXIV2_MAX_VERSION@)
      GIO
      GLib                 @GLIB_REQUIRED_VERSION@
      glib-networking
@@ -271,7 +286,7 @@ help in that regard:
      Python               @PYTHON3_REQUIRED_VERSION@
      zlib
 
- 22. Summary of optional packages:
+ 23. Summary of optional packages:
 
      Package Name        Version        Feature
 
@@ -297,7 +312,7 @@ help in that regard:
      webkit              @WEBKITGTK_REQUIRED_VERSION@         Help browser & webpage
      vala                -              Vala plug-ins
 
- 23. Summary of optional runtime dependencies:
+ 24. Summary of optional runtime dependencies:
 
      darktable >= 1.7, with lua support enabled for raw loading
      RawTherapee >= 5.2 for raw loading
@@ -309,7 +324,7 @@ help in that regard:
      dot for "Show Image Graph" (unstable branches)
      xdg-desktop-portal implemented for your desktop for various D-Bus API (screenshot, color-picking…)
 
- 24. Summary of experimental or unmaintained dependencies:
+ 25. Summary of experimental or unmaintained dependencies:
 
      Lua 5.1 (or LuaJIT) and LGI: Lua plug-in example is disabled by
        default because of stability issues with the Lua binding.
@@ -332,7 +347,7 @@ compilation and installation output is not shown.
   % ninja -C _build install         # install GIMP
 
 
-The `configure' step examines your system, and adapts GIMP to run on
+The `setup' step examines your system, and adapts GIMP to run on
 it. The script has many options, some of which are described in the
 generic instructions included at the end of this file. All of the
 options can be listed using the command `meson configure' if you
@@ -412,13 +427,13 @@ These are:
      gimp-console is useful for command-line batch mode or as a server.
 
   -Djavascript=disabled  If for some reason you don't want to install the
-     JavaScript plug-ins, you can use -Djavascript=false.
+     JavaScript plug-ins, you can use -Djavascript=disabled.
 
   -Dlua=true  Lua binding is experimental because of stability issues.
      You may test the feature by enabling it.
 
-  -Dvala-plugins=disabled  If for some reason you don't want to install the
-     Vala plug-ins, you can use -Dvala-plugins=disabled.
+  -Dvala=disabled  If for some reason you don't want to install the
+     Vala plug-ins, you can use -Dvala=disabled.
 
 
 This list is manually maintained. To get an exhaustive listing of options,
@@ -431,6 +446,8 @@ The `ninja' command builds several things:
  - The plug-in programs in the 'plug-ins' directory.
  - Some modules in the 'modules' subdirectory.
  - The main GIMP program 'gimp-@GIMP_APP_VERSION@' in `app'.
+ - A CLI GIMP program 'gimp-console-@GIMP_APP_VERSION@' in `app' (unless
+   -Denable-console-bin=false was set).
 
 The `ninja install' command installs the GIMP header files associated
 with the libgimp libraries, the plug-ins, some data files and the GIMP

@@ -78,6 +78,9 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef _WIN32
+#include <io.h>
+#endif
 
 #include <glib/gstdio.h>
 #ifndef _O_BINARY
@@ -220,7 +223,7 @@ static const CompressorEntry compressors[] =
   {
     N_("gzip archive"),
     "application/x-gzip",
-    "gz,xcf.gz,xcfgz",
+    "xcf.gz,xcfgz",
     "0,string,\037\213",
     ".xcfgz",
     ".gz",
@@ -239,7 +242,7 @@ static const CompressorEntry compressors[] =
   {
     N_("bzip archive"),
     "application/x-bzip",
-    "bz2,xcf.bz2,xcfbz2",
+    "xcf.bz2,xcfbz2",
     "0,string,BZh",
     ".xcfbz2",
     ".bz2",
@@ -258,7 +261,7 @@ static const CompressorEntry compressors[] =
   {
     N_("xz archive"),
     "application/x-xz",
-    "xz,xcf.xz,xcfxz",
+    "xcf.xz,xcfxz",
     "0,string,\3757zXZ\x00",
     ".xcfxz",
     ".xz",
@@ -277,7 +280,7 @@ static const CompressorEntry compressors[] =
   {
     N_("zip archive"),
     "application/zip",
-    "zip,hgt.zip",
+    "hgt.zip",
     "0,string,PK\x03\x04",
     ".xcfzip",
     ".zip",
@@ -383,6 +386,8 @@ compressor_create_procedure (GimpPlugIn  *plug_in,
                                               compressor->mime_type);
           gimp_file_procedure_set_extensions (GIMP_FILE_PROCEDURE (procedure),
                                               compressor->extensions);
+          gimp_file_procedure_set_meta (GIMP_FILE_PROCEDURE (procedure),
+                                        TRUE, compressor->generic_extension + 1);
 
           return procedure;
         }
@@ -485,7 +490,7 @@ export_image (const CompressorEntry  *compressor,
       g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
                    "%s", gimp_pdb_get_last_error (gimp_get_pdb ()));
 
-      return GIMP_PDB_EXECUTION_ERROR;
+      return gimp_pdb_get_last_status (gimp_get_pdb ());
     }
 
   gimp_progress_init_printf (_("Compressing '%s'"),

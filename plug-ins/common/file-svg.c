@@ -161,6 +161,22 @@ static GString     * svg_export_file         (GimpImage             *image,
                                               GError               **error);
 static void          svg_export_image_size   (GimpImage             *image,
                                               GString               *str);
+static void          svg_export_defs         (GimpItem             **layers,
+                                              GimpGroupLayer        *group,
+                                              GString               *str,
+                                              GimpProcedureConfig   *config,
+                                              GList                **exported_res,
+                                              GError               **error);
+static void          svg_export_def          (GimpVectorLayer       *layer,
+                                              GString               *str,
+                                              GimpProcedureConfig   *config,
+                                              GList                **exported_res,
+                                              GError               **error);
+static gchar       * svg_get_def_string      (GimpVectorLayer       *layer,
+                                              const gchar           *type,
+                                              GimpProcedureConfig   *config,
+                                              GList                **exported_res,
+                                              GError               **error);
 static void          svg_export_layers       (GimpItem             **layers,
                                               GimpGroupLayer        *group,
                                               gint                  *layer_ids,
@@ -203,6 +219,8 @@ static void          svg_export_layer_mask   (GimpLayerMask         *mask,
 static gchar       * svg_get_color_string    (GimpVectorLayer       *layer,
                                               const gchar           *type);
 static gchar       * svg_get_hex_color       (GeglColor             *color);
+
+static gboolean     svg_drawable_has_transparency (GimpDrawable     *drawable);
 
 #if LIBRSVG_CHECK_VERSION(2, 46, 0)
 static GimpUnit      * svg_rsvg_to_gimp_unit (RsvgUnit               unit);
@@ -260,7 +278,12 @@ svg_create_procedure (GimpPlugIn  *plug_in,
       gimp_procedure_set_menu_label (procedure, _("SVG image"));
 
       gimp_procedure_set_documentation (procedure,
-                                        "Loads files in the SVG file format",
+                                        _("Loads files in SVG file format"),
+                                        /* TODO: let's localize after we
+                                         * add support for vector and/or
+                                         * text and link layers:
+                                         * _("Loads SVG (Scalable Vector Graphic) files")
+                                         */
                                         "Renders SVG files to raster graphics "
                                         "using librsvg.",
                                         name);
@@ -298,8 +321,8 @@ svg_create_procedure (GimpPlugIn  *plug_in,
       gimp_procedure_set_menu_label (procedure, _("Scalable Vector Graphic"));
 
       gimp_procedure_set_documentation (procedure,
-                                        _("Export vector layers in SVG file format"),
-                                        _("Export vector layers in SVG file format "
+                                        _("Exports files in SVG file format"),
+                                        _("Exports files in SVG file format "
                                           "(Scalable Vector Graphic)"),
                                         name);
       gimp_procedure_set_attribution (procedure,
@@ -332,9 +355,9 @@ svg_create_procedure (GimpPlugIn  *plug_in,
       gimp_procedure_add_choice_argument (procedure, "raster-export-format",
                                           _("Em_bed raster layers as"),
                                           NULL,
-                                          gimp_choice_new_with_values ("png",  EXPORT_FORMAT_PNG,  _("PNG"),                         NULL,
-                                                                       "jpeg", EXPORT_FORMAT_JPEG, _("JPEG"),                        NULL,
-                                                                       "none", EXPORT_FORMAT_NONE, _("Do not export raster layers"), NULL,
+                                          gimp_choice_new_with_values ("png",  EXPORT_FORMAT_PNG,  _("PNG (always)"),                            NULL,
+                                                                       "jpeg", EXPORT_FORMAT_JPEG, _("JPEG (for opaque images, PNG otherwise)"), NULL,
+                                                                       "none", EXPORT_FORMAT_NONE, _("Do not export raster layers"),             NULL,
                                                                        NULL),
                                           "png",
                                           G_PARAM_READWRITE);
@@ -673,14 +696,14 @@ svg_load (GimpProcedure         *procedure,
 }
 
 static GimpValueArray *
-svg_export (GimpProcedure        *procedure,
-            GimpRunMode           run_mode,
-            GimpImage            *image,
-            GFile                *file,
-            GimpExportOptions    *options,
-            GimpMetadata         *metadata,
-            GimpProcedureConfig  *config,
-            gpointer              run_data)
+svg_export (GimpProcedure       *procedure,
+            GimpRunMode          run_mode,
+            GimpImage           *image,
+            GFile               *file,
+            GimpExportOptions   *options,
+            GimpMetadata        *metadata,
+            GimpProcedureConfig *config,
+            gpointer             run_data)
 {
   GimpPDBStatusType  status = GIMP_PDB_SUCCESS;
   GimpExportReturn   export = GIMP_EXPORT_IGNORE;
@@ -1202,8 +1225,9 @@ svg_export_file (GimpImage            *image,
                  GError              **error)
 {
   GimpLayer **layers;
-  gchar      *title;
+  gchar      *title        = NULL;
   GString    *str          = g_string_new (NULL);
+  GList      *exported_res = NULL;
   gint        layer_ids[6] = { 0 };
 
   g_object_get (config, "title", &title, NULL);
@@ -1230,13 +1254,233 @@ svg_export_file (GimpImage            *image,
                             title);
 
   layers = gimp_image_get_layers (image);
-  svg_export_layers ((GimpItem **) layers, NULL, layer_ids, str, config, "",
-                     error);
+  g_string_append (str, "  <defs>\n");
+  svg_export_defs ((GimpItem **) layers, NULL, str, config, &exported_res, error);
+  g_list_free (exported_res);
+  g_string_append (str, "  </defs>\n");
+  svg_export_layers ((GimpItem **) layers, NULL, layer_ids, str, config, "", error);
   g_free (layers);
 
   g_string_append (str, "</svg>\n");
 
+  g_free (title);
+
   return str;
+}
+
+static void
+svg_export_defs (GimpItem             **layers,
+                 GimpGroupLayer        *group,
+                 GString               *str,
+                 GimpProcedureConfig   *config,
+                 GList                **exported_res,
+                 GError               **error)
+{
+  GimpItem **items;
+  gint32     n_layers;
+
+  if (group)
+    items = gimp_item_get_children (GIMP_ITEM (group));
+  else
+    items = layers;
+
+  n_layers = gimp_core_object_array_get_length ((GObject **) items);
+
+  for (gint i = n_layers - 1; i >= 0; i--)
+    {
+      if (gimp_item_get_visible (items[i]))
+        {
+          if (gimp_item_is_group (items[i]))
+            svg_export_defs (NULL, GIMP_GROUP_LAYER (items[i]), str, config, exported_res, error);
+          else if (GIMP_IS_VECTOR_LAYER (items[i]) &&
+                   ! gimp_rasterizable_is_rasterized (GIMP_RASTERIZABLE (items[i])))
+            svg_export_def (GIMP_VECTOR_LAYER (items[i]), str, config, exported_res, error);
+        }
+      gimp_progress_update ((gdouble) (n_layers - i) / n_layers);
+
+      if (*error)
+        break;
+    }
+  if (group)
+    g_free (items);
+
+  gimp_progress_update (1.0);
+}
+
+static void
+svg_export_def (GimpVectorLayer      *layer,
+                GString              *str,
+                GimpProcedureConfig  *config,
+                GList               **exported_res,
+                GError              **error)
+{
+  gchar *fill_string;
+  gchar *stroke_string;
+
+  fill_string   = svg_get_def_string (layer, "fill", config, exported_res, error);
+  stroke_string = svg_get_def_string (layer, "stroke", config, exported_res, error);
+
+  g_string_append_printf (str,
+                          "%s%s",
+                          fill_string ? fill_string : "",
+                          stroke_string ? stroke_string : "");
+
+  g_free (fill_string);
+  g_free (stroke_string);
+}
+
+static gchar *
+svg_get_def_string (GimpVectorLayer      *layer,
+                    const gchar          *type,
+                    GimpProcedureConfig  *config,
+                    GList               **exported_res,
+                    GError              **error)
+{
+  GimpPattern *pattern = NULL;
+  gboolean     enabled;
+
+  if (g_strcmp0 ("fill", type) == 0)
+    {
+      enabled = gimp_vector_layer_get_enable_fill (layer);
+      if (enabled)
+        pattern = gimp_vector_layer_get_fill_pattern (layer);
+    }
+  else
+    {
+      enabled = gimp_vector_layer_get_enable_stroke (layer);
+      if (enabled)
+        pattern = gimp_vector_layer_get_stroke_pattern (layer);
+    }
+
+  if (enabled && pattern && ! g_list_find (*exported_res, pattern))
+    {
+      gchar          *def_string = NULL;
+      GFile          *temp_file  = NULL;
+      FILE           *temp_fp;
+      gsize           temp_size;
+      GimpProcedure  *procedure;
+      GimpValueArray *return_vals;
+      GimpImage      *temp_image;
+      GimpLayer      *temp_layer;
+      const gchar    *mimetype;
+      gint            width;
+      gint            height;
+      gint            format_id;
+
+      GeglBuffer     *src_buffer;
+      GeglBuffer     *dst_buffer;
+      gint            res_id;
+
+      res_id     = gimp_resource_get_id (GIMP_RESOURCE (pattern));
+      /* XXX Should we try to output in high-bit depth when possible? */
+      src_buffer = gimp_pattern_get_buffer (pattern, 0, 0, babl_format ("R'G'B' u8"));
+      width      = gegl_buffer_get_width (src_buffer);
+      height     = gegl_buffer_get_height (src_buffer);
+      temp_image = gimp_image_new (width, height, GIMP_RGB);
+      temp_layer = gimp_layer_new (temp_image, NULL, width, height, GIMP_RGBA_IMAGE,
+                                   100.0, GIMP_LAYER_MODE_NORMAL);
+      gimp_image_insert_layer (temp_image, temp_layer, NULL, 0);
+      dst_buffer = gimp_drawable_get_buffer (GIMP_DRAWABLE (temp_layer));
+      gegl_buffer_copy (src_buffer, NULL, GEGL_ABYSS_NONE, dst_buffer, NULL);
+
+      g_object_unref (src_buffer);
+      g_object_unref (dst_buffer);
+
+      format_id = gimp_procedure_config_get_choice_id (GIMP_PROCEDURE_CONFIG (config),
+                                                       "raster-export-format");
+      if (format_id == EXPORT_FORMAT_PNG)
+        {
+          temp_file = gimp_temp_file ("png");
+          mimetype  = "image/png";
+
+          procedure   = gimp_pdb_lookup_procedure (gimp_get_pdb (), "file-png-export");
+          return_vals = gimp_procedure_run (procedure,
+                                            "run-mode",              GIMP_RUN_NONINTERACTIVE,
+                                            "image",                 temp_image,
+                                            "file",                  temp_file,
+                                            "interlaced",            FALSE,
+                                            "compression",           9,
+                                            "bkgd",                  FALSE,
+                                            "offs",                  FALSE,
+                                            "phys",                  FALSE,
+                                            "time",                  FALSE,
+                                            "save-transparent",      FALSE,
+                                            "optimize-palette",      FALSE,
+                                            "include-color-profile", FALSE,
+                                            NULL);
+        }
+      else
+        {
+          temp_file = gimp_temp_file ("jpeg");
+          mimetype  = "image/jpeg";
+
+          procedure   = gimp_pdb_lookup_procedure (gimp_get_pdb (), "file-jpeg-export");
+          return_vals = gimp_procedure_run (procedure,
+                                            "run-mode",              GIMP_RUN_NONINTERACTIVE,
+                                            "image",                 temp_image,
+                                            "file",                  temp_file,
+                                            "quality",               0.9f,
+                                            "cmyk",                  FALSE,
+                                            "include-color-profile", FALSE,
+                                            NULL);
+        }
+      gimp_image_delete (temp_image);
+
+      if (GIMP_VALUES_GET_ENUM (return_vals, 0) != GIMP_PDB_SUCCESS)
+        {
+          if (! error)
+            {
+              if (G_VALUE_HOLDS_STRING (gimp_value_array_index (return_vals, 1)))
+                g_set_error (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                             "SVG: Unable to export pattern image data: %s",
+                             GIMP_VALUES_GET_STRING (return_vals, 1));
+              else
+                g_set_error_literal (error, G_FILE_ERROR, G_FILE_ERROR_FAILED,
+                                     "SVG: Unable to export pattern image data.");
+            }
+
+          g_object_unref (temp_file);
+
+          return NULL;
+        }
+
+      temp_fp = g_fopen (g_file_peek_path (temp_file), "rb");
+      fseek (temp_fp, 0L, SEEK_END);
+      temp_size = ftell (temp_fp);
+      fseek (temp_fp, 0L, SEEK_SET);
+
+      if (temp_size > 0)
+        {
+          guchar *buf;
+          gchar  *encoded;
+
+          buf = g_malloc0 (temp_size);
+          fread (buf, 1, temp_size, temp_fp);
+
+          encoded = g_base64_encode ((const guchar *) buf, temp_size + 1);
+
+          def_string = g_strdup_printf ("    <pattern id=\"Pattern%d\"\n"
+                                        "             patternUnits=\"userSpaceOnUse\"\n"
+                                        "             width=\"%d\"\n"
+                                        "             height=\"%d\">\n"
+                                        "      <image href=\"data:%s;base64,%s\" />\n"
+                                        "    </pattern>\n",
+                                        res_id, width, height, mimetype, encoded);
+
+          g_free (encoded);
+          g_free (buf);
+        }
+
+      fclose (temp_fp);
+      g_file_delete (temp_file, NULL, NULL);
+      g_object_unref (temp_file);
+
+      *exported_res = g_list_prepend (*exported_res, pattern);
+
+      return def_string;
+    }
+
+  return NULL;
 }
 
 static void
@@ -1269,14 +1513,7 @@ svg_export_layers (GimpItem             **layers,
     {
       if (gimp_item_get_visible (items[i]))
         {
-          if (gimp_item_is_vector_layer (items[i]))
-            {
-              GimpVectorLayer *layer = GIMP_VECTOR_LAYER (items[i]);
-
-              svg_export_path (layer, layer_ids[LAYER_ID_VECTOR]++, str,
-                               extra_spacing);
-            }
-          else if (gimp_item_is_group (items[i]))
+          if (gimp_item_is_group (items[i]))
             {
               svg_export_group_header (GIMP_GROUP_LAYER (items[i]),
                                        layer_ids[LAYER_ID_GROUP]++, str,
@@ -1285,19 +1522,30 @@ svg_export_layers (GimpItem             **layers,
                                  str, config, extra_spacing, error);
               g_string_append_printf (str, "%s</g>\n", extra_spacing);
             }
-          else if (gimp_item_is_text_layer (items[i]))
+          else if (GIMP_IS_RASTERIZABLE (items[i]) &&
+                   ! gimp_rasterizable_is_rasterized (GIMP_RASTERIZABLE (items[i])))
             {
-              GimpTextLayer *layer = GIMP_TEXT_LAYER (items[i]);
+              if (GIMP_IS_VECTOR_LAYER (items[i]))
+                {
+                  GimpVectorLayer *layer = GIMP_VECTOR_LAYER (items[i]);
 
-              svg_export_text (layer, layer_ids[LAYER_ID_TEXT]++, str,
-                               extra_spacing);
-            }
-          else if (gimp_item_is_link_layer (items[i]))
-            {
-              GimpLinkLayer *layer = GIMP_LINK_LAYER (items[i]);
+                  svg_export_path (layer, layer_ids[LAYER_ID_VECTOR]++, str,
+                                   extra_spacing);
+                }
+              else if (GIMP_IS_TEXT_LAYER (items[i]))
+                {
+                  GimpTextLayer *layer = GIMP_TEXT_LAYER (items[i]);
 
-              svg_export_link_layer (layer, layer_ids[LAYER_ID_LINK]++, str,
-                                     extra_spacing);
+                  svg_export_text (layer, layer_ids[LAYER_ID_TEXT]++, str,
+                                   extra_spacing);
+                }
+              else if (GIMP_IS_LINK_LAYER (items[i]))
+                {
+                  GimpLinkLayer *layer = GIMP_LINK_LAYER (items[i]);
+
+                  svg_export_link_layer (layer, layer_ids[LAYER_ID_LINK]++, str,
+                                         extra_spacing);
+                }
             }
           else if (format_id != EXPORT_FORMAT_NONE)
             {
@@ -1315,10 +1563,10 @@ svg_export_layers (GimpItem             **layers,
 }
 
 static void
-svg_export_group_header (GimpGroupLayer        *group,
-                         gint                   group_id,
-                         GString               *str,
-                         gchar                 *spacing)
+svg_export_group_header (GimpGroupLayer *group,
+                         gint            group_id,
+                         GString        *str,
+                         gchar          *spacing)
 {
   gchar   *name;
   gdouble  opacity;
@@ -1704,10 +1952,10 @@ svg_export_text_lines (GimpTextLayer *layer,
 }
 
 static void
-svg_export_link_layer (GimpLinkLayer         *layer,
-                       gint                   link_id,
-                       GString               *str,
-                       gchar                 *spacing)
+svg_export_link_layer (GimpLinkLayer *layer,
+                       gint           link_id,
+                       GString       *str,
+                       gchar         *spacing)
 {
   GFile   *file;
   gchar   *name;
@@ -1748,12 +1996,12 @@ svg_export_link_layer (GimpLinkLayer         *layer,
 }
 
 static void
-svg_export_raster (GimpDrawable         *layer,
-                   gint                 *layer_ids,
-                   GString              *str,
-                   gint                  format_id,
-                   gchar                *spacing,
-                   GError              **error)
+svg_export_raster (GimpDrawable  *layer,
+                   gint          *layer_ids,
+                   GString       *str,
+                   gint           format_id,
+                   gchar         *spacing,
+                   GError       **error)
 {
   GimpProcedure  *procedure;
   GimpValueArray *return_vals = NULL;
@@ -1778,6 +2026,9 @@ svg_export_raster (GimpDrawable         *layer,
                              layer_ids, str, spacing, error);
       has_layer_mask = TRUE;
     }
+
+  if (format_id == EXPORT_FORMAT_JPEG && svg_drawable_has_transparency (layer))
+    format_id = EXPORT_FORMAT_PNG;
 
   if (format_id == EXPORT_FORMAT_PNG)
     {
@@ -1956,33 +2207,54 @@ static gchar *
 svg_get_color_string (GimpVectorLayer *layer,
                       const gchar     *type)
 {
-  GeglColor *color   = NULL;
-  gboolean   enabled = TRUE;
+  GeglColor   *color   = NULL;
+  GimpPattern *pattern = NULL;
+  gboolean     enabled = TRUE;
 
   if (g_strcmp0 ("fill", type) == 0)
     {
       color   = gimp_vector_layer_get_fill_color (layer);
+      if (color == NULL)
+        pattern = gimp_vector_layer_get_fill_pattern (layer);
       enabled = gimp_vector_layer_get_enable_fill (layer);
     }
   else
     {
       color   = gimp_vector_layer_get_stroke_color (layer);
+      if (color == NULL)
+        pattern = gimp_vector_layer_get_stroke_pattern (layer);
       enabled = gimp_vector_layer_get_enable_stroke (layer);
     }
 
-  if (enabled && color)
+  if (enabled)
     {
-      gchar   *hex_color;
-      gchar   *color_string;
+      if (color)
+        {
+          gchar *hex_color;
+          gchar *color_string;
 
-      hex_color = svg_get_hex_color (color);
+          hex_color = svg_get_hex_color (color);
 
-      color_string = g_strdup_printf ("%s=\"%s\"",
-                                      type, hex_color);
-      g_free (hex_color);
+          color_string = g_strdup_printf ("%s=\"%s\"",
+                                          type, hex_color);
+          g_free (hex_color);
+          g_clear_object (&color);
 
-      return color_string;
+          return color_string;
+        }
+      else if (pattern)
+        {
+          gchar *color_string;
+          gint   res_id = gimp_resource_get_id (GIMP_RESOURCE (pattern));
+
+          color_string = g_strdup_printf ("%s=\"url(#Pattern%d)\"",
+                                          type, res_id);
+
+          return color_string;
+        }
     }
+
+  g_clear_object (&color);
 
   return g_strdup_printf ("%s=\"none\"", type);
 }
@@ -1997,4 +2269,39 @@ svg_get_hex_color (GeglColor *color)
   hex_color = g_strdup_printf ("#%02X%02X%02X", rgb[0], rgb[1], rgb[2]);
 
   return hex_color;
+}
+
+static gboolean
+svg_drawable_has_transparency (GimpDrawable *drawable)
+{
+  if (gimp_drawable_has_alpha (drawable))
+    {
+      GeglBuffer         *buffer;
+      GeglBufferIterator *iter;
+
+      buffer = gimp_drawable_get_buffer (drawable);
+      iter   = gegl_buffer_iterator_new (buffer, NULL, 0, babl_format ("A float"),
+                                         GEGL_ACCESS_READ, GEGL_ABYSS_NONE, 1);
+
+      while (gegl_buffer_iterator_next (iter))
+        {
+          gfloat *d = iter->items[0].data;
+          gint    i;
+
+          for (i = 0; i < iter->length; i++)
+            {
+              if (*d != 1.0)
+                {
+                  g_object_unref (buffer);
+                  return TRUE;
+                }
+
+              d++;
+            }
+        }
+
+      g_object_unref (buffer);
+    }
+
+  return FALSE;
 }
